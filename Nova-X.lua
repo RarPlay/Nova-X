@@ -1,4 +1,4 @@
--- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
+-- 🌌 NovaX (Ultimate Edition v1.1)
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -15,22 +15,19 @@ local ToggleButton = Instance.new("TextButton")
 local SettingsButton = Instance.new("TextButton")
 local SettingsFrame = Instance.new("Frame")
 local ThemeLabel = Instance.new("TextLabel")
-local HistoryLabel = Instance.new("TextLabel")
 
 ScreenGui.Name = "NovaX_UI"
 ScreenGui.Parent = game.CoreGui
 
--- === MAIN FRAME ===
 Frame.Size = UDim2.new(0, 420, 0, 320)
 Frame.Position = UDim2.new(0.5, -210, 0.5, -160)
 Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Frame.BorderSizePixel = 0
 Frame.Visible = true
 Frame.Active = true
-Frame.Draggable = false
 Frame.Parent = ScreenGui
 
--- === SHADOW EFFECT ===
+
 local shadow = Instance.new("ImageLabel")
 shadow.Size = UDim2.new(1, 30, 1, 30)
 shadow.Position = UDim2.new(0, -15, 0, -15)
@@ -40,7 +37,6 @@ shadow.ImageTransparency = 0.5
 shadow.ZIndex = 0
 shadow.Parent = Frame
 
--- === TITLE BAR ===
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.BorderSizePixel = 0
@@ -56,7 +52,6 @@ Title.BackgroundTransparency = 1
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
--- === SETTINGS BUTTON ===
 SettingsButton.Text = "⚙️"
 SettingsButton.Size = UDim2.new(0, 40, 0, 40)
 SettingsButton.Position = UDim2.new(1, -80, 0, 0)
@@ -66,7 +61,6 @@ SettingsButton.Font = Enum.Font.SourceSansBold
 SettingsButton.TextSize = 20
 SettingsButton.Parent = TitleBar
 
--- === CLOSE ===
 Close.Text = "X"
 Close.Size = UDim2.new(0, 40, 0, 40)
 Close.Position = UDim2.new(1, -40, 0, 0)
@@ -76,7 +70,6 @@ Close.Font = Enum.Font.SourceSansBold
 Close.TextSize = 22
 Close.Parent = TitleBar
 
--- === SCRIPT BOX ===
 ScriptBox.Size = UDim2.new(1, -20, 1, -120)
 ScriptBox.Position = UDim2.new(0, 10, 0, 50)
 ScriptBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -89,7 +82,6 @@ ScriptBox.Font = Enum.Font.Code
 ScriptBox.TextSize = 16
 ScriptBox.Parent = Frame
 
--- === BUTTONS ===
 Execute.Text = "▶ Execute"
 Execute.Size = UDim2.new(0, 120, 0, 35)
 Execute.Position = UDim2.new(0, 40, 1, -45)
@@ -108,18 +100,6 @@ Clear.Font = Enum.Font.SourceSansBold
 Clear.TextSize = 18
 Clear.Parent = Frame
 
--- === HISTORY ===
-HistoryLabel.Size = UDim2.new(1, -20, 0, 25)
-HistoryLabel.Position = UDim2.new(0, 10, 1, -80)
-HistoryLabel.BackgroundTransparency = 1
-HistoryLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-HistoryLabel.Font = Enum.Font.Code
-HistoryLabel.TextSize = 14
-HistoryLabel.TextXAlignment = Enum.TextXAlignment.Left
-HistoryLabel.Text = "History: (none yet)"
-HistoryLabel.Parent = Frame
-
--- === TOGGLE BUTTON ===
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Position = UDim2.new(0.5, -22, 0, 10)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -131,7 +111,6 @@ ToggleButton.Visible = false
 ToggleButton.Parent = ScreenGui
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
 
--- === SETTINGS PANEL ===
 SettingsFrame.Size = UDim2.new(0, 150, 0, 100)
 SettingsFrame.Position = UDim2.new(1, -160, 0, 45)
 SettingsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -155,6 +134,24 @@ local themes = {
 
 local currentTheme = "Dark"
 local yPos = 30
+local themePath = "Nova-X-sys/Theme.txt"
+local logPath = "Nova-X-sys/ExecutionLog.txt"
+if writefile and readfile then
+	pcall(function()
+		
+		if not isfolder("Nova-X-sys") then makefolder("Nova-X-sys") end
+		
+		if isfile(themePath) then
+			local savedTheme = readfile(themePath)
+			if themes[savedTheme] then
+				currentTheme = savedTheme
+				Frame.BackgroundColor3 = themes[savedTheme].frame
+				Title.TextColor3 = themes[savedTheme].accent
+			end
+		end
+	end)
+end
+
 for name, _ in pairs(themes) do
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, -10, 0, 25)
@@ -170,45 +167,12 @@ for name, _ in pairs(themes) do
 		currentTheme = name
 		Frame.BackgroundColor3 = themes[name].frame
 		Title.TextColor3 = themes[name].accent
+		if writefile then writefile(themePath, name) end
 	end)
 	yPos += 30
 end
 
--- === SOUND EFFECTS ===
-local clickSound = Instance.new("Sound", ScreenGui)
-clickSound.SoundId = "rbxassetid://9118823106"
-clickSound.Volume = 1.0
-
-local successSound = Instance.new("Sound", ScreenGui)
-successSound.SoundId = "rbxassetid://6026984224"
-
-local errorSound = Instance.new("Sound", ScreenGui)
-errorSound.SoundId = "rbxassetid://6026984222"
-
-local function playClick() clickSound:Play() end
-local function playSuccess() successSound:Play() end
-local function playError() errorSound:Play() end
-
--- === HISTORY HANDLING ===
-local history = {}
-local function addHistory(entry)
-	table.insert(history, 1, entry)
-	if #history > 5 then table.remove(history, 6) end
-	HistoryLabel.Text = "History: " .. table.concat(history, " | ")
-end
-
--- === AUTO SAVE ===
-local scriptPath = "NovaX_LastScript.txt"
-if writefile and readfile then
-	pcall(function() ScriptBox.Text = readfile(scriptPath) end)
-	ScriptBox:GetPropertyChangedSignal("Text"):Connect(function()
-		pcall(function() writefile(scriptPath, ScriptBox.Text) end)
-	end)
-end
-
--- === EXECUTE BUTTON ===
 Execute.MouseButton1Click:Connect(function()
-	playClick()
 	local code = ScriptBox.Text
 	Execute.Text = "⏳ Running..."
 	task.wait(0.3)
@@ -216,40 +180,31 @@ Execute.MouseButton1Click:Connect(function()
 	if func then
 		local ok, result = pcall(func)
 		if ok then
-			playSuccess()
 			Execute.Text = "✅ Done!"
-			addHistory("Success")
+			if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Success\n") end
 		else
-			playError()
 			Execute.Text = "⚠️ Runtime error"
 			warn(result)
-			addHistory("Error")
+			if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Runtime error: "..tostring(result).."\n") end
 		end
 	else
-		playError()
 		Execute.Text = "❌ Syntax error"
 		warn(err)
-		addHistory("Error")
+		if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Syntax error: "..tostring(err).."\n") end
 	end
 	task.wait(1)
 	Execute.Text = "▶ Execute"
 end)
 
--- === CLEAR BUTTON ===
 Clear.MouseButton1Click:Connect(function()
-	playClick()
 	ScriptBox.Text = ""
 end)
 
--- === SETTINGS TOGGLE ===
 SettingsButton.MouseButton1Click:Connect(function()
-	playClick()
 	SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
--- === CLOSE ANIMATION ===
 Close.MouseButton1Click:Connect(function()
-	playClick()
 	local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
 		BackgroundTransparency = 1
@@ -260,9 +215,7 @@ Close.MouseButton1Click:Connect(function()
 	ToggleButton.Visible = true
 end)
 
--- === TOGGLE OPEN ===
 ToggleButton.MouseButton1Click:Connect(function()
-	playClick()
 	ToggleButton.Visible = false
 	Frame.Visible = true
 	Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
@@ -272,26 +225,26 @@ ToggleButton.MouseButton1Click:Connect(function()
 	}):Play()
 end)
 
--- === DRAGGING FRAME ===
 local dragging, dragStart, startPos
-TitleBar.InputBegan:Connect(function(input)
+Frame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
 		dragging = true
 		dragStart = input.Position
 		startPos = Frame.Position
 	end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
 		local delta = input.Position - dragStart
 		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 	end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
--- === DRAGGING TOGGLE ===
 local draggingToggle = false
 local toggleStart, togglePos
 ToggleButton.InputBegan:Connect(function(input)
@@ -301,6 +254,7 @@ ToggleButton.InputBegan:Connect(function(input)
 		togglePos = ToggleButton.Position
 	end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
 		local delta = input.Position - toggleStart
@@ -310,20 +264,3 @@ end)
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
 end)
-
--- === BUTTON HOVER EFFECTS ===
-local function animateButton(button, hover)
-	local targetColor = hover and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(0, 170, 255)
-	local scaleValue = hover and 1.05 or 1
-	local scaleObj = button:FindFirstChild("UIScale") or Instance.new("UIScale", button)
-	local stroke = button:FindFirstChild("UIStroke") or Instance.new("UIStroke", button)
-	stroke.Thickness = 2
-	stroke.Transparency = hover and 0.5 or 1
-	stroke.Color = targetColor
-	TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
-	TweenService:Create(scaleObj, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Scale = scaleValue}):Play()
-end
-Execute.MouseEnter:Connect(function() animateButton(Execute, true) end)
-Execute.MouseLeave:Connect(function() animateButton(Execute, false) end)
-Clear.MouseEnter:Connect(function() animateButton(Clear, true) end)
-Clear.MouseLeave:Connect(function() animateButton(Clear, false) end) 
