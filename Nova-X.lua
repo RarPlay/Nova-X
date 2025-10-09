@@ -148,264 +148,30 @@ ThemeLabel.TextSize = 16
 ThemeLabel.Parent = SettingsFrame
 
 local themes = {
-    ["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
-    ["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
-    ["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
+	["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
+	["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
+	["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
 }
 
 local currentTheme = "Dark"
 local yPos = 30
 for name, _ in pairs(themes) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 25)
-    btn.Position = UDim2.new(0, 5, 0, yPos)
-    btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 16
-    btn.Parent = SettingsFrame
-    Instance.new("UICorner", btn)
-    btn.MouseButton1Click:Connect(function()
-        currentTheme = name
-        Frame.BackgroundColor3 = themes[name].frame
-        Title.TextColor3 = themes[name].accent
-    end)
-    yPos += 30
-end
-
--- === TAB SYSTEM ===
-local tabs = {}
-local currentTab = nil
-local tabCount = 1
-
--- Tab buttons container
-local tabContainer = Instance.new("Frame")
-tabContainer.Size = UDim2.new(1, -20, 0, 35)
-tabContainer.Position = UDim2.new(0, 10, 0, 45)
-tabContainer.BackgroundTransparency = 1
-tabContainer.Parent = Frame
-
-local tabListLayout = Instance.new("UIListLayout")
-tabListLayout.FillDirection = Enum.FillDirection.Horizontal
-tabListLayout.Padding = UDim.new(0, 5)
-tabListLayout.Parent = tabContainer
-
--- Add Tab button
-local addTabButton = Instance.new("TextButton")
-addTabButton.Size = UDim2.new(0, 35, 0, 30)
-addTabButton.Text = "+"
-addTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-addTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-addTabButton.Font = Enum.Font.SourceSansBold
-addTabButton.TextSize = 18
-addTabButton.Parent = tabContainer
-Instance.new("UICorner", addTabButton)
-
--- Adjust ScriptBox position
-ScriptBox.Position = UDim2.new(0, 10, 0, 85)
-ScriptBox.Size = UDim2.new(1, -20, 1, -155)
-
--- Adjust History position
-HistoryLabel.Position = UDim2.new(0, 10, 1, -110)
-
--- Tab class
-local Tab = {}
-Tab.__index = Tab
-
-function Tab.new(name)
-    local self = setmetatable({}, Tab)
-    
-    self.name = name or "Tab " .. tabCount  
-    self.script = "-- Enter Lua code here"  
-    self.id = tabCount  
-    
-    -- Create tab button  
-    self.button = Instance.new("TextButton")  
-    self.button.Size = UDim2.new(0, 80, 0, 30)  
-    self.button.Text = self.name  
-    self.button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)  
-    self.button.TextColor3 = Color3.fromRGB(200, 200, 200)  
-    self.button.Font = Enum.Font.SourceSans  
-    self.button.TextSize = 14  
-    self.button.Parent = tabContainer  
-    Instance.new("UICorner", self.button)  
-    
-    -- Close button for tab  
-    self.closeButton = Instance.new("TextButton")  
-    self.closeButton.Size = UDim2.new(0, 20, 0, 20)  
-    self.closeButton.Position = UDim2.new(1, -25, 0, 5)  
-    self.closeButton.Text = "×"  
-    self.closeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)  
-    self.closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)  
-    self.closeButton.Font = Enum.Font.SourceSansBold  
-    self.closeButton.TextSize = 16  
-    self.closeButton.Visible = false  
-    self.closeButton.ZIndex = 2  
-    self.closeButton.Parent = self.button  
-    Instance.new("UICorner", self.closeButton)  
-    
-    -- Connect events  
-    self.button.MouseButton1Click:Connect(function()  
-        self:select()  
-    end)  
-    
-    self.closeButton.MouseButton1Click:Connect(function()  
-        self:close()  
-    end)  
-    
-    -- Hover effects  
-    self.button.MouseEnter:Connect(function()  
-        if self ~= currentTab then  
-            TweenService:Create(self.button, TweenInfo.new(0.2), {  
-                BackgroundColor3 = Color3.fromRGB(70, 70, 70)  
-            }):Play()  
-        end  
-        self.closeButton.Visible = true  
-    end)  
-    
-    self.button.MouseLeave:Connect(function()  
-        if self ~= currentTab then  
-            TweenService:Create(self.button, TweenInfo.new(0.2), {  
-                BackgroundColor3 = Color3.fromRGB(50, 50, 50)  
-            }):Play()  
-        end  
-        self.closeButton.Visible = false  
-    end)  
-    
-    tabCount = tabCount + 1  
-    return self
-end
-
-function Tab:select()
-    if currentTab then
-        -- Save current tab's script
-        currentTab.script = ScriptBox.Text
-
-        -- Deselect current tab  
-        TweenService:Create(currentTab.button, TweenInfo.new(0.2), {  
-            BackgroundColor3 = Color3.fromRGB(50, 50, 50),  
-            TextColor3 = Color3.fromRGB(200, 200, 200)  
-        }):Play()  
-    end  
-    
-    -- Select this tab  
-    currentTab = self  
-    ScriptBox.Text = self.script  
-    
-    TweenService:Create(self.button, TweenInfo.new(0.2), {  
-        BackgroundColor3 = Color3.fromRGB(0, 120, 215),  
-        TextColor3 = Color3.fromRGB(255, 255, 255)  
-    }):Play()  
-    
-    playClick()
-end
-
-function Tab:close()
-    if #tabs <= 1 then return end -- Don't close last tab
-
-    playClick()  
-    
-    -- Find tab index  
-    local index = table.find(tabs, self)  
-    if index then  
-        table.remove(tabs, index)  
-    end  
-    
-    -- Remove UI elements  
-    self.button:Destroy()  
-    
-    -- If closing current tab, select another one  
-    if self == currentTab then  
-        if index and tabs[index] then  
-            tabs[index]:select()  
-        else  
-            tabs[#tabs]:select()  
-        end  
-    end
-end
-
-function Tab:rename(newName)
-    self.name = newName
-    self.button.Text = newName
-end
-
--- Create first tab
-local function createInitialTab()
-    local tab = Tab.new("Main")
-    table.insert(tabs, tab)
-    tab:select()
-end
-
--- Add Tab button functionality
-addTabButton.MouseButton1Click:Connect(function()
-    playClick()
-
-    local newTab = Tab.new("Tab " .. tabCount)  
-    table.insert(tabs, newTab)  
-    newTab:select()
-end)
-
--- Tab animations
-addTabButton.MouseEnter:Connect(function()
-    TweenService:Create(addTabButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(80, 80, 80),
-        Size = UDim2.new(0, 40, 0, 32)
-    }):Play()
-end)
-
-addTabButton.MouseLeave:Connect(function()
-    TweenService:Create(addTabButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-        Size = UDim2.new(0, 35, 0, 30)
-    }):Play()
-end)
-
--- Initialize tabs
-createInitialTab()
-
--- Auto-save for tabs
-if writefile and readfile then
-    local tabsDataPath = "NovaX_Tabs.txt"
-
-    -- Save tabs on close  
-    game:GetService("UserInputService").WindowFocusReleased:Connect(function()  
-        pcall(function()  
-            local tabsData = {}  
-            for _, tab in pairs(tabs) do  
-                table.insert(tabsData, {  
-                    name = tab.name,  
-                    script = tab.script  
-                })  
-            end  
-            writefile(tabsDataPath, game:GetService("HttpService"):JSONEncode(tabsData))  
-        end)  
-    end)  
-    
-    -- Load tabs on start  
-    pcall(function()  
-        local saved = readfile(tabsDataPath)  
-        local tabsData = game:GetService("HttpService"):JSONDecode(saved)  
-        
-        if tabsData and #tabsData > 0 then  
-            -- Clear initial tab  
-            for _, tab in pairs(tabs) do  
-                tab.button:Destroy()  
-            end  
-            tabs = {}  
-            
-            -- Load saved tabs  
-            for i, tabData in ipairs(tabsData) do  
-                local tab = Tab.new(tabData.name)  
-                tab.script = tabData.script  
-                table.insert(tabs, tab)  
-                
-                if i == 1 then  
-                    tab:select()  
-                end  
-            end  
-        end  
-    end)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 25)
+	btn.Position = UDim2.new(0, 5, 0, yPos)
+	btn.Text = name
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.SourceSans
+	btn.TextSize = 16
+	btn.Parent = SettingsFrame
+	Instance.new("UICorner", btn)
+	btn.MouseButton1Click:Connect(function()
+		currentTheme = name
+		Frame.BackgroundColor3 = themes[name].frame
+		Title.TextColor3 = themes[name].accent
+	end)
+	yPos += 30
 end
 
 -- === SOUND EFFECTS ===
@@ -419,177 +185,145 @@ successSound.SoundId = "rbxassetid://6026984224"
 local errorSound = Instance.new("Sound", ScreenGui)
 errorSound.SoundId = "rbxassetid://6026984222"
 
-local function playClick() 
-    if clickSound then 
-        clickSound:Play() 
-    end 
-end
-
-local function playSuccess() 
-    if successSound then 
-        successSound:Play() 
-    end 
-end
-
-local function playError() 
-    if errorSound then 
-        errorSound:Play() 
-    end 
-end
+local function playClick() clickSound:Play() end
+local function playSuccess() successSound:Play() end
+local function playError() errorSound:Play() end
 
 -- === HISTORY HANDLING ===
 local history = {}
 local function addHistory(entry)
-    table.insert(history, 1, entry)
-    if #history > 5 then table.remove(history, 6) end
-    HistoryLabel.Text = "History: " .. table.concat(history, " | ")
+	table.insert(history, 1, entry)
+	if #history > 5 then table.remove(history, 6) end
+	HistoryLabel.Text = "History: " .. table.concat(history, " | ")
 end
 
 -- === AUTO SAVE ===
 local scriptPath = "NovaX_LastScript.txt"
 if writefile and readfile then
-    pcall(function() 
-        if isfile and isfile(scriptPath) then
-            ScriptBox.Text = readfile(scriptPath) 
-        end
-    end)
-    ScriptBox:GetPropertyChangedSignal("Text"):Connect(function()
-        pcall(function() 
-            writefile(scriptPath, ScriptBox.Text) 
-        end)
-    end)
+	pcall(function() ScriptBox.Text = readfile(scriptPath) end)
+	ScriptBox:GetPropertyChangedSignal("Text"):Connect(function()
+		pcall(function() writefile(scriptPath, ScriptBox.Text) end)
+	end)
 end
 
--- === EXECUTE BUTTON (ИСПРАВЛЕННЫЙ) ===
+-- === EXECUTE BUTTON ===
 Execute.MouseButton1Click:Connect(function()
-    playClick()
-    
-    -- Сохраняем скрипт текущей вкладки
-    if currentTab then
-        currentTab.script = ScriptBox.Text
-    end
-    
-    local code = ScriptBox.Text
-    Execute.Text = "⏳ Running..."
-    
-    task.wait(0.3)
-    
-    local func, err = loadstring(code)
-    if func then
-        local ok, result = pcall(func)
-        if ok then
-            playSuccess()
-            Execute.Text = "✅ Done!"
-            addHistory("Success")
-        else
-            playError()
-            Execute.Text = "⚠️ Runtime error"
-            warn("Runtime Error: " .. tostring(result))
-            addHistory("Error: " .. tostring(result))
-        end
-    else
-        playError()
-        Execute.Text = "❌ Syntax error"
-        warn("Syntax Error: " .. tostring(err))
-        addHistory("Error: " .. tostring(err))
-    end
-    
-    task.wait(1)
-    Execute.Text = "▶ Execute"
+	playClick()
+	local code = ScriptBox.Text
+	Execute.Text = "⏳ Running..."
+	task.wait(0.3)
+	local func, err = loadstring(code)
+	if func then
+		local ok, result = pcall(func)
+		if ok then
+			playSuccess()
+			Execute.Text = "✅ Done!"
+			addHistory("Success")
+		else
+			playError()
+			Execute.Text = "⚠️ Runtime error"
+			warn(result)
+			addHistory("Error")
+		end
+	else
+		playError()
+		Execute.Text = "❌ Syntax error"
+		warn(err)
+		addHistory("Error")
+	end
+	task.wait(1)
+	Execute.Text = "▶ Execute"
 end)
 
 -- === CLEAR BUTTON ===
 Clear.MouseButton1Click:Connect(function()
-    playClick()
-    ScriptBox.Text = ""
+	playClick()
+	ScriptBox.Text = ""
 end)
 
 -- === SETTINGS TOGGLE ===
 SettingsButton.MouseButton1Click:Connect(function()
-    playClick()
-    SettingsFrame.Visible = not SettingsFrame.Visible
+	playClick()
+	SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
 -- === CLOSE ANIMATION ===
 Close.MouseButton1Click:Connect(function()
-    playClick()
-    local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
-        BackgroundTransparency = 1
-    })
-    tween:Play()
-    task.wait(0.4)
-    Frame.Visible = false
-    ToggleButton.Visible = true
+	playClick()
+	local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
+		BackgroundTransparency = 1
+	})
+	tween:Play()
+	task.wait(0.4)
+	Frame.Visible = false
+	ToggleButton.Visible = true
 end)
 
 -- === TOGGLE OPEN ===
 ToggleButton.MouseButton1Click:Connect(function()
-    playClick()
-    ToggleButton.Visible = false
-    Frame.Visible = true
-    Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -210, 0.5, -160),
-        BackgroundTransparency = 0
-    }):Play()
+	playClick()
+	ToggleButton.Visible = false
+	Frame.Visible = true
+	Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
+	TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, -210, 0.5, -160),
+		BackgroundTransparency = 0
+	}):Play()
 end)
 
 -- === DRAGGING FRAME ===
 local dragging, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-    end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+	end
 end)
 UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
+	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+		local delta = input.Position - dragStart
+		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
 -- === DRAGGING TOGGLE ===
 local draggingToggle = false
 local toggleStart, togglePos
 ToggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingToggle = true
-        toggleStart = input.Position
-        togglePos = ToggleButton.Position
-    end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingToggle = true
+		toggleStart = input.Position
+		togglePos = ToggleButton.Position
+	end
 end)
 UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
-        local delta = input.Position - toggleStart
-        ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
-    end
+	if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
+		local delta = input.Position - toggleStart
+		ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
+	end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
 end)
 
 -- === BUTTON HOVER EFFECTS ===
 local function animateButton(button, hover)
-    local targetColor = hover and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(0, 170, 255)
-    local scaleValue = hover and 1.05 or 1
-    local scaleObj = button:FindFirstChild("UIScale") or Instance.new("UIScale", button)
-    local stroke = button:FindFirstChild("UIStroke") or Instance.new("UIStroke", button)
-    stroke.Thickness = 2
-    stroke.Transparency = hover and 0.5 or 1
-    stroke.Color = targetColor
-    TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
-    TweenService:Create(scaleObj, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Scale = scaleValue}):Play()
+	local targetColor = hover and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(0, 170, 255)
+	local scaleValue = hover and 1.05 or 1
+	local scaleObj = button:FindFirstChild("UIScale") or Instance.new("UIScale", button)
+	local stroke = button:FindFirstChild("UIStroke") or Instance.new("UIStroke", button)
+	stroke.Thickness = 2
+	stroke.Transparency = hover and 0.5 or 1
+	stroke.Color = targetColor
+	TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(scaleObj, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Scale = scaleValue}):Play()
 end
-
 Execute.MouseEnter:Connect(function() animateButton(Execute, true) end)
 Execute.MouseLeave:Connect(function() animateButton(Execute, false) end)
 Clear.MouseEnter:Connect(function() animateButton(Clear, true) end)
-Clear.MouseLeave:Connect(function() animateButton(Clear, false) end)
-
-print("NovaX Executer loaded successfully! Click the toggle button to open.")
+Clear.MouseLeave:Connect(function() animateButton(Clear, false) end) 
