@@ -1,21 +1,22 @@
 -- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
 print([[
-  
   _   _                  __   __
  | \ | |                 \ \ / /
  |  \| | _____   ____ _   \ V / 
- | . ` |/ _ \ \ / / _` |   > <  
- | |\  | (_) \ V / (_| |  / . \ 
+ | . ` |/ _ \ \ / / _` |   | |  
+ | |\  | (_) \ V / (_| |  / ^ \ 
  |_| \_|\___/ \_/ \__,_| /_/ \_\
 ]])
-task.wait(3)  -- ждём 3 секунды без нагрузки CPU
+task.wait(3)
 print("[NovaX] Nova X start!")
+task.wait(5)
 
 game:GetService("StarterGui"):SetCore("SendNotification", {
 Title = "NovaX",
-Text = "Hac4ing Successfully",
+Text = "Hac4ing Successfully!",
 Duration = 5
 })
+task.wait(5)
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
