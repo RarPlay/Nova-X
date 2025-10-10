@@ -1,4 +1,14 @@
 -- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
+print([[
+  _   _                  __   __
+ | \ | |                 \ \ / /
+ |  \| | _____   ____ _   \ V / 
+ | . ` |/ _ \ \ / / _` |   > <  
+ | |\  | (_) \ V / (_| |  / . \ 
+ |_| \_|\___/ \_/ \__,_| /_/ \_\
+]])
+os.execute("sleep 3")  -- ждём 3 секунды без нагрузки CPU
+print("[NovaX] Nova X start!")
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -21,17 +31,6 @@ local SplashImage = Instance.new("ImageLabel")
 ScreenGui.Name = "NovaX_UI"
 ScreenGui.Parent = game.CoreGui
 local sysPath = "Nova-X-sys"
-
-print([[
-  _   _                  __   __
- | \ | |                 \ \ / /
- |  \| | _____   ____ _   \ V / 
- | . ` |/ _ \ \ / / _` |   > <  
- | |\  | (_) \ V / (_| |  / . \ 
- |_| \_|\___/ \_/ \__,_| /_/ \_\
-]])
-task.wait(3)  -- ждём 3 секунды без нагрузки CPU
-print("[NovaX] Nova X start!")
 
 -- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
