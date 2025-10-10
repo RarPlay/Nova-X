@@ -173,9 +173,7 @@ if themes[savedTheme] then
 currentTheme = savedTheme
 Frame.BackgroundColor3 = themes[savedTheme].frame
 Title.TextColor3 = themes[savedTheme].accent
-end
-end
-end)
+    end
 end
 
 for name, _ in pairs(themes) do
