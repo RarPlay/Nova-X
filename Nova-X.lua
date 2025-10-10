@@ -31,6 +31,7 @@ local SplashImage = Instance.new("ImageLabel")
 ScreenGui.Name = "NovaX_UI"
 ScreenGui.Parent = (gethui and gethui()) or game:FindFirstChildOfClass("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui") 
 local sysPath = "Nova-X-sys"
+ScreenGui.Parent = parentGui
 
 -- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
