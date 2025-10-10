@@ -30,7 +30,12 @@ local ThemeLabel = Instance.new("TextLabel")
 local SplashImage = Instance.new("ImageLabel")
 
 ScreenGui.Name = "NovaX_UI"
-ScreenGui.Parent = (gethui and gethui()) or game:FindFirstChildOfClass("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui") 
+local parentGui = (gethui and gethui()) 
+    or (game:FindFirstChildOfClass("CoreGui")) 
+    or (game.Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")) 
+    or (Instance.new("ScreenGui"))
+
+ScreenGui.Parent = parentGui 
 local sysPath = "Nova-X-sys"
 ScreenGui.Parent = parentGui
 
