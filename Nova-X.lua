@@ -30,7 +30,7 @@ print([[
  | |\  | (_) \ V / (_| |  / . \ 
  |_| \_|\___/ \_/ \__,_| /_/ \_\
 ]])
-os.execute("sleep 3")  -- ждём 3 секунды без нагрузки CPU
+task.wait(3)  -- ждём 3 секунды без нагрузки CPU
 print("[NovaX] Nova X start!")
 
 -- === SPLASH IMAGE ===
