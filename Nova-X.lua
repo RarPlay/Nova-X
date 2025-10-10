@@ -162,11 +162,51 @@ local currentTheme = "Dark"
 local yPos = 30
 local themePath = "Nova-X-sys/Theme.txt"
 local logPath = "Nova-X-sys/ExecutionLog.txt"
-if writefile then
-    local log = ""
-    if isfile(logPath) then log = readfile(logPath) end
-    writefile(logPath, log .. os.date() .. " | Success\n")
-end
+-- === GLOBAL CONSOLE LOGGER (NovaX Monitoring System v2.1 Persistent) ===
+local sysPath = "Nova-X-sys"
+local logPath = sysPath .. "/ExecutionLog.txt"
+if writefile and readfile and appendfile then
+    pcall(function()
+        if not isfolder(sysPath) then
+            makefolder(sysPath)
+        end
+        if not isfile(logPath) then
+            writefile(logPath, "")
+        end
+    end)
+
+    local function writeLog(tag, msg)
+        local time = os.date("[%Y-%m-%d %H:%M:%S]")
+        local line = string.format("%s [%s] %s\n", time, tag, tostring(msg))
+        appendfile(logPath, line)
+    end
+
+    -- перехватываем стандартные функции
+    local oldPrint = print
+    local oldWarn = warn
+    local oldError = error
+
+    function print(...)
+        local msg = table.concat({...}, " ")
+        writeLog("PRINT", msg)
+        oldPrint(...)
+    end
+
+    function warn(...)
+        local msg = table.concat({...}, " ")
+        writeLog("WARN", msg)
+        oldWarn(...)
+    end
+
+    function error(...)
+        local msg = table.concat({...}, " ")
+        writeLog("ERROR", msg)
+        oldError(...)
+    end
+
+    writeLog("SYSTEM", "NovaX Logger initialized (persistent mode).")
+else
+    warn("[NovaX] Logging unavailable: missing writefile/appendfile support.")
 if isfile(themePath) then
 local savedTheme = readfile(themePath)
 if themes[savedTheme] then
@@ -295,7 +335,7 @@ end)
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
-while task.wait(2) do -- каждые 2 секунды проверка
+while task.wait(1) do -- каждые 2 секунды проверка
 if not isfolder(sysPath) then
 warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
 game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -303,7 +343,7 @@ Title = "NovaX Security",
 Text = "System directory missing. Terminating...",
 Duration = 5
 })
-task.wait(1)
+task.wait(4)
 Frame:Destroy()
 ToggleButton:Destroy()
 warn("[NovaX] Terminated due to integrity failure.")
