@@ -22,6 +22,17 @@ ScreenGui.Name = "NovaX_UI"
 ScreenGui.Parent = game.CoreGui
 local sysPath = "Nova-X-sys"
 
+print([[
+  _   _                  __   __
+ | \ | |                 \ \ / /
+ |  \| | _____   ____ _   \ V / 
+ | . ` |/ _ \ \ / / _` |   > <  
+ | |\  | (_) \ V / (_| |  / . \ 
+ |_| \_|\___/ \_/ \__,_| /_/ \_\
+]])
+os.execute("sleep 3")  -- ждём 3 секунды без нагрузки CPU
+print("[NovaX] Nova X start!")
+
 -- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
 SplashImage.Position = UDim2.new(0.5, -100, 0.5, -100)
