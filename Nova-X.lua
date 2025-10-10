@@ -216,6 +216,8 @@ if writefile and readfile and appendfile then
     writeLog("SYSTEM", "NovaX Logger initialized (persistent mode).")
 else
     warn("[NovaX] Logging unavailable: missing writefile/appendfile support.")
+end 
+
 if isfile(themePath) then
 local savedTheme = readfile(themePath)
 if themes[savedTheme] then
