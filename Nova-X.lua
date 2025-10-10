@@ -29,11 +29,11 @@ SplashImage.Image = "rbxassetid://1316045217"
 SplashImage.Parent = ScreenGui
 
 task.spawn(function()
-    TweenService:Create(SplashImage, TweenInfo.new(1), {Size = UDim2.new(0, 300, 0, 300)}):Play()
-    task.wait(1)
-    TweenService:Create(SplashImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
-    task.wait(0.5)
-    SplashImage:Destroy()
+TweenService:Create(SplashImage, TweenInfo.new(1), {Size = UDim2.new(0, 300, 0, 300)}):Play()
+task.wait(1)
+TweenService:Create(SplashImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
+task.wait(0.5)
+SplashImage:Destroy()
 end)
 
 -- === MAIN FRAME ===
@@ -152,9 +152,9 @@ ThemeLabel.Parent = SettingsFrame
 
 -- === THEMES ===
 local themes = {
-	["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
-	["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
-	["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
+["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
+["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
+["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
 }
 
 local currentTheme = "Dark"
@@ -162,132 +162,149 @@ local yPos = 30
 local themePath = "Nova-X-sys/Theme.txt"
 local logPath = "Nova-X-sys/ExecutionLog.txt"
 if writefile and readfile then
-	pcall(function()
-		if not isfolder("Nova-X-sys") then makefolder("Nova-X-sys") end
-		if isfile(themePath) then
-			local savedTheme = readfile(themePath)
-			if themes[savedTheme] then
-				currentTheme = savedTheme
-				Frame.BackgroundColor3 = themes[savedTheme].frame
-				Title.TextColor3 = themes[savedTheme].accent
-			end
-		end
-	end)
+pcall(function()
+if not isfolder("Nova-X-sys") then makefolder("Nova-X-sys") end
+if isfile(themePath) then
+local savedTheme = readfile(themePath)
+if themes[savedTheme] then
+currentTheme = savedTheme
+Frame.BackgroundColor3 = themes[savedTheme].frame
+Title.TextColor3 = themes[savedTheme].accent
+end
+end
+end)
 end
 
 for name, _ in pairs(themes) do
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -10, 0, 25)
-	btn.Position = UDim2.new(0, 5, 0, yPos)
-	btn.Text = name
-	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.SourceSans
-	btn.TextSize = 16
-	btn.Parent = SettingsFrame
-	Instance.new("UICorner", btn)
-	btn.MouseButton1Click:Connect(function()
-		currentTheme = name
-		Frame.BackgroundColor3 = themes[name].frame
-		Title.TextColor3 = themes[name].accent
-		if writefile then writefile(themePath, name) end
-	end)
-	yPos += 30
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(1, -10, 0, 25)
+btn.Position = UDim2.new(0, 5, 0, yPos)
+btn.Text = name
+btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.Font = Enum.Font.SourceSans
+btn.TextSize = 16
+btn.Parent = SettingsFrame
+Instance.new("UICorner", btn)
+btn.MouseButton1Click:Connect(function()
+currentTheme = name
+Frame.BackgroundColor3 = themes[name].frame
+Title.TextColor3 = themes[name].accent
+if writefile then writefile(themePath, name) end
+end)
+yPos += 30
 end
 
 -- === EXECUTE BUTTON ===
 Execute.MouseButton1Click:Connect(function()
-	local code = ScriptBox.Text
-	Execute.Text = "⏳ Running..."
-	task.wait(0.3)
-	local func, err = loadstring(code)
-	if func then
-		local ok, result = pcall(func)
-		if ok then
-			Execute.Text = "✅ Done!"
-			if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Success\n") end
-		else
-			Execute.Text = "⚠️ Runtime error"
-			warn(result)
-			if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Runtime error: "..tostring(result).."\n") end
-		end
-	else
-		Execute.Text = "❌ Syntax error"
-		warn(err)
-		if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Syntax error: "..tostring(err).."\n") end
-	end
-	task.wait(1)
-	Execute.Text = "▶ Execute"
+local code = ScriptBox.Text
+Execute.Text = "⏳ Running..."
+task.wait(0.3)
+local func, err = loadstring(code)
+if func then
+local ok, result = pcall(func)
+if ok then
+Execute.Text = "✅ Done!"
+if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Success\n") end
+else
+Execute.Text = "⚠️ Runtime error"
+warn(result)
+if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Runtime error: "..tostring(result).."\n") end
+end
+else
+Execute.Text = "❌ Syntax error"
+warn(err)
+if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Syntax error: "..tostring(err).."\n") end
+end
+task.wait(1)
+Execute.Text = "▶ Execute"
 end)
 
 -- === CLEAR BUTTON ===
 Clear.MouseButton1Click:Connect(function()
-	ScriptBox.Text = ""
+ScriptBox.Text = ""
 end)
 
 -- === SETTINGS TOGGLE ===
 SettingsButton.MouseButton1Click:Connect(function()
-	SettingsFrame.Visible = not SettingsFrame.Visible
+SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
 -- === CLOSE ANIMATION ===
 Close.MouseButton1Click:Connect(function()
-	local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
-		BackgroundTransparency = 1
-	})
-	tween:Play()
-	task.wait(0.4)
-	Frame.Visible = false
-	ToggleButton.Visible = true
+local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
+BackgroundTransparency = 1
+})
+tween:Play()
+task.wait(0.4)
+Frame.Visible = false
+ToggleButton.Visible = true
 end)
 
 -- === TOGGLE OPEN ===
 ToggleButton.MouseButton1Click:Connect(function()
-	ToggleButton.Visible = false
-	Frame.Visible = true
-	Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
-	TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, -210, 0.5, -160),
-		BackgroundTransparency = 0
-	}):Play()
+ToggleButton.Visible = false
+Frame.Visible = true
+Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
+TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+Position = UDim2.new(0.5, -210, 0.5, -160),
+BackgroundTransparency = 0
+}):Play()
 end)
 
 -- === DRAGGING FRAME ===
 local dragging, dragStart, startPos
 Frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
-		dragging = true
-		dragStart = input.Position
-		startPos = Frame.Position
-	end
+if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
+dragging = true
+dragStart = input.Position
+startPos = Frame.Position
+end
 end)
 UserInputService.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-		local delta = input.Position - dragStart
-		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	end
+if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+local delta = input.Position - dragStart
+Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
 end)
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
 -- === DRAGGING TOGGLE BUTTON ===
 local draggingToggle = false
 local toggleStart, togglePos
 ToggleButton.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		draggingToggle = true
-		toggleStart = input.Position
-		togglePos = ToggleButton.Position
-	end
+if input.UserInputType == Enum.UserInputType.MouseButton1 then
+draggingToggle = true
+toggleStart = input.Position
+togglePos = ToggleButton.Position
+end
 end)
 UserInputService.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
-		local delta = input.Position - toggleStart
-		ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
-	end
+if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
+local delta = input.Position - toggleStart
+ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
+end
 end)
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
+if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
 end)
+
+-- === SYSTEM INTEGRITY WATCHDOG ===
+task.spawn(function()
+while task.wait(2) do -- каждые 2 секунды проверка
+if not isfolder(sysPath) then
+warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
+game:GetService("StarterGui"):SetCore("SendNotification", {
+Title = "NovaX Security",
+Text = "System directory missing. Terminating...",
+Duration = 5
+})
+task.wait(1)
+error("NovaX integrity failure — shutting down")
+end
+end
+end)
+
