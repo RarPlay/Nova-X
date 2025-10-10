@@ -254,7 +254,14 @@ Execute.MouseButton1Click:Connect(function()
 local code = ScriptBox.Text
 Execute.Text = "⏳ Running..."
 task.wait(0.3)
-local func, err = loadstring(code)
+local loader = loadstring or load          -- используем то, что есть
+if not loader then
+    warn("[NovaX] Your executor does not support loadstring or load.")
+    Execute.Text = "❌ Unsupported"
+    return
+end
+
+local func, err = loader(code)
 if func then
 local ok, result = pcall(func)
 if ok then
