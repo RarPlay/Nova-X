@@ -1,5 +1,5 @@
 -- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
-print([[
+print([[a
   
   _   _                  __   __
  | \ | |                 \ \ / /
