@@ -173,7 +173,6 @@ local yPos = 30
 local themePath = "Nova-X-sys/Theme.txt"
 local logPath = "Nova-X-sys/ExecutionLog.txt"
 -- === GLOBAL CONSOLE LOGGER (NovaX Monitoring System v2.1 Persistent) ===
-local sysPath = "Nova-X-sys"
 local logPath = sysPath .. "/ExecutionLog.txt"
 if writefile and readfile and appendfile then
     pcall(function()
