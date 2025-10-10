@@ -11,6 +11,12 @@ print([[
 task.wait(3)  -- ждём 3 секунды без нагрузки CPU
 print("[NovaX] Nova X start!")
 
+game:GetService("StarterGui"):SetCore("SendNotification", {
+Title = "NovaX",
+Text = "Hac4ing Successfully",
+Duration = 5
+})
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
