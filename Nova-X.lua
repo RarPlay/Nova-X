@@ -20,6 +20,7 @@ local SplashImage = Instance.new("ImageLabel")
 
 ScreenGui.Name = "NovaX_UI"
 ScreenGui.Parent = game.CoreGui
+local sysPath = "Nova-X-sys"
 
 -- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
@@ -161,9 +162,11 @@ local currentTheme = "Dark"
 local yPos = 30
 local themePath = "Nova-X-sys/Theme.txt"
 local logPath = "Nova-X-sys/ExecutionLog.txt"
-if writefile and readfile then
-pcall(function()
-if not isfolder("Nova-X-sys") then makefolder("Nova-X-sys") end
+if writefile then
+    local log = ""
+    if isfile(logPath) then log = readfile(logPath) end
+    writefile(logPath, log .. os.date() .. " | Success\n")
+end
 if isfile(themePath) then
 local savedTheme = readfile(themePath)
 if themes[savedTheme] then
