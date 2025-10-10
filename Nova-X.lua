@@ -306,7 +306,10 @@ Text = "System directory missing. Terminating...",
 Duration = 5
 })
 task.wait(1)
-error("NovaX integrity failure — shutting down")
+Frame:Destroy()
+ToggleButton:Destroy()
+warn("[NovaX] Terminated due to integrity failure.")
+break
 end
 end
 end)
