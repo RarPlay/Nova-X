@@ -187,6 +187,7 @@ local currentTheme = "Dark"
 local yPos = 30
 local themePath = "Nova-X-sys/Theme.txt"
 local logPath = "Nova-X-sys/ExecutionLog.txt"
+
 -- === GLOBAL CONSOLE LOGGER (NovaX Monitoring System v2.1 Persistent) ===
 local logPath = sysPath .. "/ExecutionLog.txt"
 if writefile and readfile and appendfile then
@@ -364,6 +365,66 @@ end
 end)
 UserInputService.InputEnded:Connect(function(input)
 if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
+end)
+
+local dragging, dragStart, startPos
+
+-- === КНОПКА OPEN CONSOLE ===
+local openConsoleBtn = Instance.new("TextButton")
+openConsoleBtn.Size = UDim2.new(1, -10, 0, 25)
+openConsoleBtn.Position = UDim2.new(0, 5, 0, yPos)
+openConsoleBtn.Text = "Open Console"
+openConsoleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+openConsoleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+openConsoleBtn.Font = Enum.Font.SourceSans
+openConsoleBtn.TextSize = 16
+openConsoleBtn.Parent = SettingsFrame
+Instance.new("UICorner", openConsoleBtn)
+
+openConsoleBtn.MouseButton1Click:Connect(function()
+    -- Открывает встроенную Roblox консоль
+    if UserInputService:IsKeyDown(Enum.KeyCode.F9) == false then
+        game:GetService("UserInputService"):InputBegan({
+            KeyCode = Enum.KeyCode.F9
+        }, false)
+    end
+end)
+
+yPos += 30
+
+-- Функция для проверки, что клик не по интерактивному элементу
+local function isInteractive(guiObject)
+    local interactiveClasses = {
+        "TextButton", "TextBox", "ImageButton"
+    }
+    for _, class in ipairs(interactiveClasses) do
+        if guiObject:IsA(class) then return true end
+    end
+    return false
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local target = input.Target
+        if target == Frame or not isInteractive(target) then
+            dragging = true
+            dragStart = input.Position
+            startPos = Frame.Position
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
 end)
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
