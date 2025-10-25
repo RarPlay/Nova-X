@@ -8,16 +8,13 @@ print([[
  | |\  | (_) \ V / (_| |  / ^ \ 
  |_| \_|\___/ \_/ \__,_| /_/ \_\
 ]])
-task.wait(3)
 print("[NovaX] Nova X start!")
-task.wait(5)
 
 game:GetService("StarterGui"):SetCore("SendNotification", {
 Title = "NovaX",
 Text = "Hac4ing Successfully!",
 Duration = 5
 })
-task.wait(5)
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -153,7 +150,7 @@ Clear.Parent = Frame
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Position = UDim2.new(0.5, -22, 0.5, -22)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-ToggleButton.Text = "🌌"
+ToggleButton.Text = ""
 ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 255)
 ToggleButton.Font = Enum.Font.SourceSansBold
 ToggleButton.TextSize = 22
