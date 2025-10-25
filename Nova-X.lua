@@ -150,7 +150,7 @@ Clear.Parent = Frame
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Position = UDim2.new(0.5, -22, 0.5, -22)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-ToggleButton.Text = ""
+ToggleButton.Text = "🪐"
 ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 255)
 ToggleButton.Font = Enum.Font.SourceSansBold
 ToggleButton.TextSize = 22
@@ -367,7 +367,7 @@ end)
 -- === DRAG HANDLE BUTTON ===
 local DragButton = Instance.new("TextButton")
 DragButton.Size = UDim2.new(0, 40, 0, 40)
-DragButton.Position = UDim2.new(1, -120, 0, 0) -- рядом с кнопкой Settings (⚙️)
+DragButton.Position = UDim2.new(1, -120, 0, 0) -- рядом с ⚙️
 DragButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 DragButton.Text = "↕️"
@@ -376,28 +376,35 @@ DragButton.TextSize = 20
 DragButton.Parent = TitleBar
 Instance.new("UICorner", DragButton)
 
--- === DRAG LOGIC ===
-local draggingGUI = false
-local dragStartPos, guiStartPos
+-- === DRAG LOGIC (fix + smooth) ===
+local UserInputService = game:GetService("UserInputService")
+local dragging = false
+local mousePos
+local framePos
 
 DragButton.MouseButton1Down:Connect(function()
-    draggingGUI = true
-    dragStartPos = game:GetService("UserInputService"):GetMouseLocation()
-    guiStartPos = Frame.Position
+    dragging = true
+    mousePos = UserInputService:GetMouseLocation()
+    framePos = Frame.Position
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if draggingGUI and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStartPos
-        Frame.Position = UDim2.new(guiStartPos.X.Scale, guiStartPos.X.Offset + delta.X, guiStartPos.Y.Scale, guiStartPos.Y.Offset + delta.Y)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - mousePos
+        Frame.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
     end
 end)
 
-game:GetService("UserInputService").InputEnded:Connect(function(input)
+UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingGUI = false
+        dragging = false
     end
-end)
+end) 
 
 -- === INFINITE YIELD BUTTON ===
 local InfiniteYieldBtn = Instance.new("TextButton")
@@ -406,7 +413,7 @@ InfiniteYieldBtn.Size = UDim2.new(0, 120, 0, 35)
 InfiniteYieldBtn.Position = UDim2.new(0.5, -60, 1, -45)  
 InfiniteYieldBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- зелёный
 InfiniteYieldBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-InfiniteYieldBtn.Text = "infinite yield"
+InfiniteYieldBtn.Text = "♾️ infinite yield"
 InfiniteYieldBtn.Font = Enum.Font.SourceSansBold
 InfiniteYieldBtn.TextSize = 18
 InfiniteYieldBtn.Parent = Frame
