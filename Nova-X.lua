@@ -367,63 +367,61 @@ UserInputService.InputEnded:Connect(function(input)
 if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
 end)
 
-local dragging, dragStart, startPos
+-- === DRAG HANDLE BUTTON ===
+local DragButton = Instance.new("TextButton")
+DragButton.Size = UDim2.new(0, 40, 0, 40)
+DragButton.Position = UDim2.new(1, -120, 0, 0) -- рядом с кнопкой Settings (⚙️)
+DragButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+DragButton.Text = "↕️"
+DragButton.Font = Enum.Font.SourceSansBold
+DragButton.TextSize = 20
+DragButton.Parent = TitleBar
+Instance.new("UICorner", DragButton)
 
--- === КНОПКА OPEN CONSOLE ===
-local openConsoleBtn = Instance.new("TextButton")
-openConsoleBtn.Size = UDim2.new(1, -10, 0, 25)
-openConsoleBtn.Position = UDim2.new(0, 5, 0, yPos)
-openConsoleBtn.Text = "Open Console"
-openConsoleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-openConsoleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-openConsoleBtn.Font = Enum.Font.SourceSans
-openConsoleBtn.TextSize = 16
-openConsoleBtn.Parent = SettingsFrame
-Instance.new("UICorner", openConsoleBtn)
+-- === DRAG LOGIC ===
+local draggingGUI = false
+local dragStartPos, guiStartPos
 
-openConsoleBtn.MouseButton1Click:Connect(function()
-    -- Открывает встроенную Roblox консоль
-    if UserInputService:IsKeyDown(Enum.KeyCode.F9) == false then
-        game:GetService("UserInputService"):InputBegan({
-            KeyCode = Enum.KeyCode.F9
-        }, false)
+DragButton.MouseButton1Down:Connect(function()
+    draggingGUI = true
+    dragStartPos = game:GetService("UserInputService"):GetMouseLocation()
+    guiStartPos = Frame.Position
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if draggingGUI and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStartPos
+        Frame.Position = UDim2.new(guiStartPos.X.Scale, guiStartPos.X.Offset + delta.X, guiStartPos.Y.Scale, guiStartPos.Y.Offset + delta.Y)
     end
 end)
 
-yPos += 30
-
--- Функция для проверки, что клик не по интерактивному элементу
-local function isInteractive(guiObject)
-    local interactiveClasses = {
-        "TextButton", "TextBox", "ImageButton"
-    }
-    for _, class in ipairs(interactiveClasses) do
-        if guiObject:IsA(class) then return true end
-    end
-    return false
-end
-
-Frame.InputBegan:Connect(function(input)
+game:GetService("UserInputService").InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local target = input.Target
-        if target == Frame or not isInteractive(target) then
-            dragging = true
-            dragStart = input.Position
-            startPos = Frame.Position
-        end
+        draggingGUI = false
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+-- === INFINITE YIELD BUTTON ===
+local InfiniteYieldBtn = Instance.new("TextButton")
+InfiniteYieldBtn.Size = UDim2.new(0, 120, 0, 35)
+-- Ставим по центру между Clear и Execute
+InfiniteYieldBtn.Position = UDim2.new(0.5, -60, 1, -45)  
+InfiniteYieldBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- зелёный
+InfiniteYieldBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+InfiniteYieldBtn.Text = "infinite yield"
+InfiniteYieldBtn.Font = Enum.Font.SourceSansBold
+InfiniteYieldBtn.TextSize = 18
+InfiniteYieldBtn.Parent = Frame
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
+-- === Кнопка запуска скрипта Infinite Yield ===
+InfiniteYieldBtn.MouseButton1Click:Connect(function()
+    local success, err = pcall(function()
+        _G.Prefix = "Start in NovaX"
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end)
+    if not success then
+        warn("[NovaX] Infinite Yield failed: "..tostring(err))
     end
 end)
 
