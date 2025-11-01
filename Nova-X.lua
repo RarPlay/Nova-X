@@ -432,7 +432,7 @@ NovaMoreButton.Size = UDim2.new(0, 120, 0, 40)
 NovaMoreButton.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 NovaMoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
-NovaMoreButton.Parent = screenGui
+NovaMoreButton.Parent = ScreenGui
 
 makeDraggable(NovaMoreButton)
 loadButtonPosition(NovaMoreButton)
@@ -444,7 +444,7 @@ NovaMoreFrame.Size = UDim2.new(0, 250, 0, 180)
 NovaMoreFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 NovaMoreFrame.Position = UDim2.new(0.5, -125, 0.5, -90)
 NovaMoreFrame.Visible = false
-NovaMoreFrame.Parent = screenGui
+NovaMoreFrame.Parent = ScreenGui
 
 -- ❌ кнопка закрытия меню
 local CloseNovaMore = Instance.new("TextButton")
