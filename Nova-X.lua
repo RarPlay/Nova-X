@@ -424,6 +424,7 @@ local function makeDraggable(button)
 	end)
 end
 
+local NovaMoreButton = Instance.new("TextButton")
 NovaMoreButton.Name = "NovaMoreButton"
 NovaMoreButton.Text = "🧭"
 NovaMoreButton.Size = UDim2.new(0, 45, 0, 45)
