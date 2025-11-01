@@ -364,70 +364,168 @@ UserInputService.InputEnded:Connect(function(input)
 if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
 end)
 
--- === DRAG HANDLE BUTTON ===
-local DragButton = Instance.new("TextButton")
-DragButton.Size = UDim2.new(0, 40, 0, 40)
-DragButton.Position = UDim2.new(1, -120, 0, 0) -- рядом с ⚙️
-DragButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-DragButton.Text = "↕️"
-DragButton.Font = Enum.Font.SourceSansBold
-DragButton.TextSize = 20
-DragButton.Parent = TitleBar
-Instance.new("UICorner", DragButton)
+-- ⚙️ функции сохранения и загрузки позиции
+local HttpService = game:GetService("HttpService")
 
--- === DRAG LOGIC (fix + smooth) ===
-local UserInputService = game:GetService("UserInputService")
-local dragging = false
-local mousePos
-local framePos
+local function saveButtonPosition(button)
+	if not writefile then return end
+	local data = {
+		X = button.Position.X.Scale,
+		Y = button.Position.Y.Scale,
+		XO = button.Position.X.Offset,
+		YO = button.Position.Y.Offset
+	}
+	writefile(button.Name .. "_pos.json", HttpService:JSONEncode(data))
+end
 
-DragButton.MouseButton1Down:Connect(function()
-    dragging = true
-    mousePos = UserInputService:GetMouseLocation()
-    framePos = Frame.Position
+local function loadButtonPosition(button)
+	if not readfile or not isfile then return end
+	if isfile(button.Name .. "_pos.json") then
+		local raw = readfile(button.Name .. "_pos.json")
+		local data = HttpService:JSONDecode(raw)
+		button.Position = UDim2.new(data.X, data.XO, data.Y, data.YO)
+	end
+end
+
+local function makeDraggable(button)
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = button.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					saveButtonPosition(button)
+				end
+			end)
+		end
+	end)
+
+	button.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+
+	game:GetService("UserInputService").InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+-- 🌌 NovaMore основная кнопка
+local NovaMoreButton = Instance.new("TextButton")
+NovaMoreButton.Name = "NovaMoreButton"
+NovaMoreButton.Text = "NovaMore"
+NovaMoreButton.Size = UDim2.new(0, 120, 0, 40)
+NovaMoreButton.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+NovaMoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
+NovaMoreButton.Parent = screenGui
+
+makeDraggable(NovaMoreButton)
+loadButtonPosition(NovaMoreButton)
+
+-- 🪐 меню NovaMore
+local NovaMoreFrame = Instance.new("Frame")
+NovaMoreFrame.Name = "NovaMoreFrame"
+NovaMoreFrame.Size = UDim2.new(0, 250, 0, 180)
+NovaMoreFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+NovaMoreFrame.Position = UDim2.new(0.5, -125, 0.5, -90)
+NovaMoreFrame.Visible = false
+NovaMoreFrame.Parent = screenGui
+
+-- ❌ кнопка закрытия меню
+local CloseNovaMore = Instance.new("TextButton")
+CloseNovaMore.Name = "CloseNovaMore"
+CloseNovaMore.Text = "✖"
+CloseNovaMore.Size = UDim2.new(0, 30, 0, 30)
+CloseNovaMore.Position = UDim2.new(1, -35, 0, 5)
+CloseNovaMore.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+CloseNovaMore.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseNovaMore.Parent = NovaMoreFrame
+
+-- 💡 Кнопка Infinite Yield
+local InfiniteYieldButton = Instance.new("TextButton")
+InfiniteYieldButton.Text = "⚙️ Infinite Yield"
+InfiniteYieldButton.Size = UDim2.new(0, 200, 0, 35)
+InfiniteYieldButton.Position = UDim2.new(0.5, -100, 0, 50)
+InfiniteYieldButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+InfiniteYieldButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+InfiniteYieldButton.Parent = NovaMoreFrame
+
+-- 💫 Кнопка SPIN ALL
+local SpinAllButton = Instance.new("TextButton")
+SpinAllButton.Text = "🌀 Spin All"
+SpinAllButton.Size = UDim2.new(0, 200, 0, 35)
+SpinAllButton.Position = UDim2.new(0.5, -100, 0, 95)
+SpinAllButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+SpinAllButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpinAllButton.Parent = NovaMoreFrame
+
+-- 🏭 Кнопка сброса
+local FactoryResetButton = Instance.new("TextButton")
+FactoryResetButton.Text = "🏭 To Factory"
+FactoryResetButton.Size = UDim2.new(0, 200, 0, 35)
+FactoryResetButton.Position = UDim2.new(0.5, -100, 0, 140)
+FactoryResetButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+FactoryResetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FactoryResetButton.Parent = NovaMoreFrame
+
+-- 🔘 логика кнопок
+NovaMoreButton.MouseButton1Click:Connect(function()
+	NovaMoreFrame.Visible = not NovaMoreFrame.Visible
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - mousePos
-        Frame.Position = UDim2.new(
-            framePos.X.Scale,
-            framePos.X.Offset + delta.X,
-            framePos.Y.Scale,
-            framePos.Y.Offset + delta.Y
-        )
-    end
+CloseNovaMore.MouseButton1Click:Connect(function()
+	NovaMoreFrame.Visible = false
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end) 
-
--- === INFINITE YIELD BUTTON ===
-local InfiniteYieldBtn = Instance.new("TextButton")
-InfiniteYieldBtn.Size = UDim2.new(0, 120, 0, 35)
--- Ставим по центру между Clear и Execute
-InfiniteYieldBtn.Position = UDim2.new(0.5, -60, 1, -45)  
-InfiniteYieldBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- зелёный
-InfiniteYieldBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-InfiniteYieldBtn.Text = "♾️ infinite yield"
-InfiniteYieldBtn.Font = Enum.Font.SourceSansBold
-InfiniteYieldBtn.TextSize = 18
-InfiniteYieldBtn.Parent = Frame
-
--- === Кнопка запуска скрипта Infinite Yield ===
-InfiniteYieldBtn.MouseButton1Click:Connect(function()
-    local success, err = pcall(function()
-        _G.Prefix = "Start in NovaX"
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-    end)
-    if not success then
-        warn("[NovaX] Infinite Yield failed: "..tostring(err))
-    end
+InfiniteYieldButton.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
 end)
+
+SpinAllButton.MouseButton1Click:Connect(function()
+	local Players = game:GetService("Players")
+	local LocalPlayer = Players.LocalPlayer
+
+	task.spawn(function()
+		while task.wait(60) do
+			for _, plr in pairs(Players:GetPlayers()) do
+				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					local hrp = plr.Character.HumanoidRootPart
+					for i = 1, 120 do
+						if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+							LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(i * 30), 0)
+							task.wait(0.05)
+						end
+					end
+				end
+			end
+		end
+	end)
+end)
+
+FactoryResetButton.MouseButton1Click:Connect(function()
+	for _, file in ipairs({"NovaMoreButton_pos.json"}) do
+		if isfile and isfile(file) then delfile(file) end
+	end
+	NovaMoreFrame.Visible = false
+	NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
+	saveButtonPosition(NovaMoreButton)
+end)
+
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
