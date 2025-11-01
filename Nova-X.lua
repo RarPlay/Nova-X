@@ -424,12 +424,10 @@ local function makeDraggable(button)
 	end)
 end
 
--- 🌌 NovaMore основная кнопка
-local NovaMoreButton = Instance.new("TextButton")
 NovaMoreButton.Name = "NovaMoreButton"
-NovaMoreButton.Text = "NovaMore"
-NovaMoreButton.Size = UDim2.new(0, 120, 0, 40)
-NovaMoreButton.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+NovaMoreButton.Text = "🧭"
+NovaMoreButton.Size = UDim2.new(0, 45, 0, 45)
+NovaMoreButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
 NovaMoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
 NovaMoreButton.Parent = ScreenGui
