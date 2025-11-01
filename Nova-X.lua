@@ -528,7 +528,7 @@ end)
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
-while task.wait(1) do -- каждые 2 секунды проверка
+while task.wait(5) do -- каждые 2 секунды проверка
 if not isfolder(sysPath) then
 warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
 game:GetService("StarterGui"):SetCore("SendNotification", {
