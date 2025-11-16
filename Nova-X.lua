@@ -460,15 +460,15 @@ local function saveButtonPosition(button)
         YO = button.Position.Y.Offset
     }
     pcall(function()
-        writefile(button.Name .. "_pos.json", HttpService:JSONEncode(data))
+        writefile(button.Name sysPath .. "_pos.json", HttpService:JSONEncode(data))
     end)
 end
 
 local function loadButtonPosition(button)
     if not readfile or not isfile then return end
     pcall(function()
-        if isfile(button.Name .. "_pos.json") then
-            local raw = readfile(button.Name .. "_pos.json")
+        if isfile(button.Name sysPath .. "_pos.json") then
+            local raw = readfile(button.Name sysPath .. "_pos.json")
             local data = HttpService:JSONDecode(raw)
             button.Position = UDim2.new(data.X, data.XO, data.Y, data.YO)
         end
@@ -536,7 +536,7 @@ loadButtonPosition(NovaMoreButton)
 local NovaMoreFrame = Instance.new("Frame")
 NovaMoreFrame.Name = "NovaMoreFrame"
 NovaMoreFrame.Size = UDim2.new(0, 250, 0, 180)
-NovaMoreFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+NovaMoreFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 NovaMoreFrame.Position = UDim2.new(0.5, -125, 0.5, -90)
 NovaMoreFrame.Visible = false
 NovaMoreFrame.ZIndex = 15
@@ -577,31 +577,6 @@ local IYCorner = Instance.new("UICorner")
 IYCorner.CornerRadius = UDim.new(0, 8)
 IYCorner.Parent = InfiniteYieldButton
 
--- 💫 Spin All Button
-local SpinAllButton = Instance.new("TextButton")
-SpinAllButton.Text = "💫 SPIN ALL"
-SpinAllButton.Size = UDim2.new(0, 200, 0, 35)
-SpinAllButton.Position = UDim2.new(0.5, -100, 0, 95)
-SpinAllButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
-SpinAllButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpinAllButton.Font = Enum.Font.SourceSansBold
-SpinAllButton.TextSize = 16
-SpinAllButton.Parent = NovaMoreFrame
-
-local SpinCorner = Instance.new("UICorner")
-SpinCorner.CornerRadius = UDim.new(0, 8)
-SpinCorner.Parent = SpinAllButton
-
--- 🏭 Factory Reset Button
-local FactoryResetButton = Instance.new("TextButton")
-FactoryResetButton.Text = "🏭 To Factory"
-FactoryResetButton.Size = UDim2.new(0, 200, 0, 35)
-FactoryResetButton.Position = UDim2.new(0.5, -100, 0, 140)
-FactoryResetButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
-FactoryResetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FactoryResetButton.Font = Enum.Font.SourceSansBold
-FactoryResetButton.TextSize = 16
-FactoryResetButton.Parent = NovaMoreFrame
 
 local FactoryCorner = Instance.new("UICorner")
 FactoryCorner.CornerRadius = UDim.new(0, 8)
@@ -622,36 +597,6 @@ InfiniteYieldButton.MouseButton1Click:Connect(function()
     end)
     if not success then
         warn("[NovaX] Failed to load Infinite Yield: " .. tostring(result))
-    end
-    NovaMoreFrame.Visible = false
-end)
-
-SpinAllButton.MouseButton1Click:Connect(function()
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    
-    task.spawn(function()
-        while task.wait(0.1) do
-            for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                    local hrp = plr.Character.HumanoidRootPart
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(120), 0)
-                        task.wait(0.05)
-                    end
-                end
-            end
-        end
-    end)
-    NovaMoreFrame.Visible = false
-end)
-
-FactoryResetButton.MouseButton1Click:Connect(function()
-    local success, result = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
-    end)
-    if not success then
-        warn("[NovaX] Failed to load Factory Reset: " .. tostring(result))
     end
     NovaMoreFrame.Visible = false
 end)
