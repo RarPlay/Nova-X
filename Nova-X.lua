@@ -1,4 +1,3 @@
--- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
 print([[
 
 
@@ -22,7 +21,6 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 
--- === ELEMENTS ===
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local TitleBar = Instance.new("Frame")
@@ -49,7 +47,6 @@ local parentGui = (gethui and gethui())
 ScreenGui.Parent = parentGui
 local sysPath = "Nova-X-sys"
 
--- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
 SplashImage.Position = UDim2.new(0.5, -100, 0.5, -100)
 SplashImage.BackgroundTransparency = 1
@@ -65,7 +62,6 @@ task.spawn(function()
     SplashImage:Destroy()
 end)
 
--- === MAIN FRAME ===
 Frame.Size = UDim2.new(0, 420, 0, 320)
 Frame.Position = UDim2.new(0.5, -210, 0.5, -160)
 Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -79,7 +75,6 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = Frame
 
--- === SHADOW ===
 local shadow = Instance.new("ImageLabel")
 shadow.Size = UDim2.new(1, 30, 1, 30)
 shadow.Position = UDim2.new(0, -15, 0, -15)
@@ -92,7 +87,6 @@ shadow.ImageTransparency = 0.5
 shadow.ZIndex = -1
 shadow.Parent = Frame
 
--- === TITLE BAR ===
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.BorderSizePixel = 0
@@ -114,7 +108,6 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.ZIndex = 3
 Title.Parent = TitleBar
 
--- === SETTINGS BUTTON ===
 SettingsButton.Text = "⚙️"
 SettingsButton.Size = UDim2.new(0, 40, 0, 40)
 SettingsButton.Position = UDim2.new(1, -80, 0, 0)
@@ -129,7 +122,6 @@ local SettingsCorner = Instance.new("UICorner")
 SettingsCorner.CornerRadius = UDim.new(0, 8)
 SettingsCorner.Parent = SettingsButton
 
--- === CLOSE BUTTON ===
 Close.Text = "X"
 Close.Size = UDim2.new(0, 40, 0, 40)
 Close.Position = UDim2.new(1, -40, 0, 0)
@@ -144,7 +136,6 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 8)
 CloseCorner.Parent = Close
 
--- === SCRIPT BOX ===
 ScriptBox.Size = UDim2.new(1, -20, 1, -120)
 ScriptBox.Position = UDim2.new(0, 10, 0, 50)
 ScriptBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -163,7 +154,6 @@ local ScriptBoxCorner = Instance.new("UICorner")
 ScriptBoxCorner.CornerRadius = UDim.new(0, 6)
 ScriptBoxCorner.Parent = ScriptBox
 
--- === BUTTONS ===
 Execute.Text = "▶ Execute"
 Execute.Size = UDim2.new(0, 120, 0, 35)
 Execute.Position = UDim2.new(0, 40, 1, -45)
@@ -190,7 +180,6 @@ local ClearCorner = Instance.new("UICorner")
 ClearCorner.CornerRadius = UDim.new(0, 8)
 ClearCorner.Parent = Clear
 
--- === TOGGLE BUTTON ===
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Position = UDim2.new(0, 20, 0, 20)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -202,7 +191,6 @@ ToggleButton.ZIndex = 10
 ToggleButton.Parent = ScreenGui
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
 
--- === SETTINGS PANEL ===
 SettingsFrame.Size = UDim2.new(0, 150, 0, 160)
 SettingsFrame.Position = UDim2.new(1, -160, 0, 45)
 SettingsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -219,7 +207,6 @@ ThemeLabel.Font = Enum.Font.SourceSansBold
 ThemeLabel.TextSize = 16
 ThemeLabel.Parent = SettingsFrame
 
--- === THEMES ===
 local themes = {
     ["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
     ["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
@@ -243,7 +230,6 @@ if writefile and readfile and makefolder and isfolder and isfile then
     end)
 end
 
--- === GLOBAL CONSOLE LOGGER ===
 local function writeLog(tag, msg)  
     if not writefile or not appendfile then return end
     
@@ -255,7 +241,6 @@ local function writeLog(tag, msg)
     end)
 end
 
--- Перехватываем стандартные функции только если доступны файловые операции
 if writefile and readfile then
     local oldPrint = print  
     local oldWarn = warn  
@@ -284,7 +269,6 @@ else
     warn("[NovaX] Logging unavailable: missing writefile/appendfile support.")
 end
 
--- Загрузка сохраненной темы
 if readfile and isfile and isfile(themePath) then
     local success, savedTheme = pcall(function()
         return readfile(themePath)
@@ -296,7 +280,6 @@ if readfile and isfile and isfile(themePath) then
     end
 end
 
--- Создание кнопок тем
 for name, _ in pairs(themes) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -10, 0, 25)
@@ -322,7 +305,6 @@ for name, _ in pairs(themes) do
     yPos += 30
 end
 
--- === EXECUTE BUTTON ===
 Execute.MouseButton1Click:Connect(function()
     local code = ScriptBox.Text
     if code == "" or code == "-- Enter Lua code here" then
@@ -371,17 +353,14 @@ Execute.MouseButton1Click:Connect(function()
     Execute.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 end)
 
--- === CLEAR BUTTON ===
-Clear.MouseButton1Click:Connect(function()
+(function()
     ScriptBox.Text = ""
 end)
 
--- === SETTINGS TOGGLE ===
 SettingsButton.MouseButton1Click:Connect(function()
     SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
--- === CLOSE ANIMATION ===
 Close.MouseButton1Click:Connect(function()
     local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
@@ -393,7 +372,6 @@ Close.MouseButton1Click:Connect(function()
     ToggleButton.Visible = true
 end)
 
--- === TOGGLE OPEN ===
 ToggleButton.MouseButton1Click:Connect(function()
     ToggleButton.Visible = false
     Frame.Visible = true
@@ -405,7 +383,6 @@ ToggleButton.MouseButton1Click:Connect(function()
     }):Play()
 end)
 
--- === DRAGGING FRAME ===
 local dragging, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -427,7 +404,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- === DRAGGING TOGGLE BUTTON ===
 local draggingToggle = false
 local toggleStart, togglePos
 ToggleButton.InputBegan:Connect(function(input)
@@ -450,7 +426,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- === NOVA MORE BUTTON SYSTEM ===
 local function saveButtonPosition(button)
     if not writefile then return end
     local data = {
@@ -512,7 +487,6 @@ local function makeDraggable(button)
     end)
 end
 
--- 🧭 NovaMore Button
 local NovaMoreButton = Instance.new("TextButton")
 NovaMoreButton.Name = "NovaMoreButton"
 NovaMoreButton.Text = "🧭"
@@ -532,7 +506,6 @@ NovaMoreCorner.Parent = NovaMoreButton
 makeDraggable(NovaMoreButton)
 loadButtonPosition(NovaMoreButton)
 
--- 🪐 NovaMore Menu
 local NovaMoreFrame = Instance.new("Frame")
 NovaMoreFrame.Name = "NovaMoreFrame"
 NovaMoreFrame.Size = UDim2.new(0, 250, 0, 180)
@@ -546,7 +519,6 @@ local NovaMoreFrameCorner = Instance.new("UICorner")
 NovaMoreFrameCorner.CornerRadius = UDim.new(0, 12)
 NovaMoreFrameCorner.Parent = NovaMoreFrame
 
--- ❌ Close NovaMore Button
 local CloseNovaMore = Instance.new("TextButton")
 CloseNovaMore.Name = "CloseNovaMore"
 CloseNovaMore.Text = "✖"
@@ -562,7 +534,6 @@ local CloseNovaMoreCorner = Instance.new("UICorner")
 CloseNovaMoreCorner.CornerRadius = UDim.new(0, 8)
 CloseNovaMoreCorner.Parent = CloseNovaMore
 
--- 💡 Infinite Yield Button
 local InfiniteYieldButton = Instance.new("TextButton")
 InfiniteYieldButton.Text = "⚙️ Infinite Yield"
 InfiniteYieldButton.Size = UDim2.new(0, 200, 0, 35)
@@ -582,7 +553,6 @@ local FactoryCorner = Instance.new("UICorner")
 FactoryCorner.CornerRadius = UDim.new(0, 8)
 FactoryCorner.Parent = FactoryResetButton
 
--- 🔘 NovaMore Button Logic
 NovaMoreButton.MouseButton1Click:Connect(function()
     NovaMoreFrame.Visible = not NovaMoreFrame.Visible
 end)
@@ -601,7 +571,6 @@ InfiniteYieldButton.MouseButton1Click:Connect(function()
     NovaMoreFrame.Visible = false
 end)
 
--- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
     while task.wait(10) do
         if writefile and readfile and isfolder then
