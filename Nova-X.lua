@@ -1,23 +1,26 @@
 -- 🌌 NovaX Executer (Ultimate Edition v1.3 Refined++ by Ратмир)
 print([[
-  
-  _   _                  __   __
- | \ | |                 \ \ / /
- |  \| | _____   ____ _   \ V / 
- | . ` |/ _ \ \ / / _` |   | |  
- | |\  | (_) \ V / (_| |  / ^ \ 
- |_| \_|\___/ \_/ \__,_| /_/ \_\
+
+
+---
+__   __                 __   __
+| \ | |                 \ \ / /
+|  \| | _____   ____ _   \ V / 
+| . \ |/ _ \ \ / / _\ |   | |  
+| |\  | (_) \ V / (| |   / . \ 
+|_| \_|\___/ \_/ \__,_| /_/ \_\
 ]])
 print("[NovaX] Nova X start!")
 
 game:GetService("StarterGui"):SetCore("SendNotification", {
-Title = "NovaX",
-Text = "Hac4ing Successfully!",
-Duration = 5
+    Title = "NovaX",
+    Text = "Loading Successfully!",
+    Duration = 5
 })
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 -- === ELEMENTS ===
 local ScreenGui = Instance.new("ScreenGui")
@@ -35,28 +38,31 @@ local ThemeLabel = Instance.new("TextLabel")
 local SplashImage = Instance.new("ImageLabel")
 
 ScreenGui.Name = "NovaX_UI"
-local parentGui = (gethui and gethui()) 
-    or (game:FindFirstChildOfClass("CoreGui")) 
-    or (game.Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")) 
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local parentGui = (gethui and gethui())
+    or (game:FindFirstChildOfClass("CoreGui"))
+    or (game.Players.LocalPlayer:FindFirstChildOfClass("PlayerGui"))
     or (Instance.new("ScreenGui"))
 
-ScreenGui.Parent = parentGui 
-local sysPath = "Nova-X-sys"
 ScreenGui.Parent = parentGui
+local sysPath = "Nova-X-sys"
 
 -- === SPLASH IMAGE ===
 SplashImage.Size = UDim2.new(0, 200, 0, 200)
 SplashImage.Position = UDim2.new(0.5, -100, 0.5, -100)
 SplashImage.BackgroundTransparency = 1
 SplashImage.Image = "rbxassetid://1316045217"
+SplashImage.ZIndex = 10
 SplashImage.Parent = ScreenGui
 
 task.spawn(function()
-TweenService:Create(SplashImage, TweenInfo.new(1), {Size = UDim2.new(0, 300, 0, 300)}):Play()
-task.wait(1)
-TweenService:Create(SplashImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
-task.wait(0.5)
-SplashImage:Destroy()
+    TweenService:Create(SplashImage, TweenInfo.new(1), {Size = UDim2.new(0, 300, 0, 300)}):Play()
+    task.wait(1)
+    TweenService:Create(SplashImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
+    task.wait(0.5)
+    SplashImage:Destroy()
 end)
 
 -- === MAIN FRAME ===
@@ -66,7 +72,12 @@ Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Frame.BorderSizePixel = 0
 Frame.Visible = false
 Frame.Active = true
+Frame.Draggable = false
 Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
 
 -- === SHADOW ===
 local shadow = Instance.new("ImageLabel")
@@ -74,15 +85,23 @@ shadow.Size = UDim2.new(1, 30, 1, 30)
 shadow.Position = UDim2.new(0, -15, 0, -15)
 shadow.BackgroundTransparency = 1
 shadow.Image = "rbxassetid://1316045217"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(10, 10, 118, 118)
 shadow.ImageTransparency = 0.5
-shadow.ZIndex = 0
+shadow.ZIndex = -1
 shadow.Parent = Frame
 
 -- === TITLE BAR ===
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.BorderSizePixel = 0
+TitleBar.ZIndex = 2
 TitleBar.Parent = Frame
+
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 8)
+TitleBarCorner.Parent = TitleBar
 
 Title.Text = "NovaX"
 Title.Size = UDim2.new(1, -100, 1, 0)
@@ -92,6 +111,7 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 22
 Title.BackgroundTransparency = 1
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 3
 Title.Parent = TitleBar
 
 -- === SETTINGS BUTTON ===
@@ -102,7 +122,12 @@ SettingsButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 SettingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SettingsButton.Font = Enum.Font.SourceSansBold
 SettingsButton.TextSize = 20
+SettingsButton.ZIndex = 3
 SettingsButton.Parent = TitleBar
+
+local SettingsCorner = Instance.new("UICorner")
+SettingsCorner.CornerRadius = UDim.new(0, 8)
+SettingsCorner.Parent = SettingsButton
 
 -- === CLOSE BUTTON ===
 Close.Text = "X"
@@ -112,7 +137,12 @@ Close.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 Close.TextColor3 = Color3.fromRGB(255, 255, 255)
 Close.Font = Enum.Font.SourceSansBold
 Close.TextSize = 22
+Close.ZIndex = 3
 Close.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = Close
 
 -- === SCRIPT BOX ===
 ScriptBox.Size = UDim2.new(1, -20, 1, -120)
@@ -125,7 +155,13 @@ ScriptBox.ClearTextOnFocus = false
 ScriptBox.Text = "-- Enter Lua code here"
 ScriptBox.Font = Enum.Font.Code
 ScriptBox.TextSize = 16
+ScriptBox.TextXAlignment = Enum.TextXAlignment.Left
+ScriptBox.TextYAlignment = Enum.TextYAlignment.Top
 ScriptBox.Parent = Frame
+
+local ScriptBoxCorner = Instance.new("UICorner")
+ScriptBoxCorner.CornerRadius = UDim.new(0, 6)
+ScriptBoxCorner.Parent = ScriptBox
 
 -- === BUTTONS ===
 Execute.Text = "▶ Execute"
@@ -137,6 +173,10 @@ Execute.Font = Enum.Font.SourceSansBold
 Execute.TextSize = 18
 Execute.Parent = Frame
 
+local ExecuteCorner = Instance.new("UICorner")
+ExecuteCorner.CornerRadius = UDim.new(0, 8)
+ExecuteCorner.Parent = Execute
+
 Clear.Text = "🧹 Clear"
 Clear.Size = UDim2.new(0, 120, 0, 35)
 Clear.Position = UDim2.new(1, -160, 1, -45)
@@ -146,22 +186,28 @@ Clear.Font = Enum.Font.SourceSansBold
 Clear.TextSize = 18
 Clear.Parent = Frame
 
+local ClearCorner = Instance.new("UICorner")
+ClearCorner.CornerRadius = UDim.new(0, 8)
+ClearCorner.Parent = Clear
+
 -- === TOGGLE BUTTON ===
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
-ToggleButton.Position = UDim2.new(0.5, -22, 0.5, -22)
+ToggleButton.Position = UDim2.new(0, 20, 0, 20)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 ToggleButton.Text = "🪐"
 ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 255)
 ToggleButton.Font = Enum.Font.SourceSansBold
 ToggleButton.TextSize = 22
+ToggleButton.ZIndex = 10
 ToggleButton.Parent = ScreenGui
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
 
 -- === SETTINGS PANEL ===
-SettingsFrame.Size = UDim2.new(0, 150, 0, 100)
+SettingsFrame.Size = UDim2.new(0, 150, 0, 160)
 SettingsFrame.Position = UDim2.new(1, -160, 0, 45)
 SettingsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 SettingsFrame.Visible = false
+SettingsFrame.ZIndex = 5
 SettingsFrame.Parent = Frame
 Instance.new("UICorner", SettingsFrame)
 
@@ -175,277 +221,332 @@ ThemeLabel.Parent = SettingsFrame
 
 -- === THEMES ===
 local themes = {
-["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
-["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
-["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
+    ["Dark"] = {frame = Color3.fromRGB(20, 20, 20), accent = Color3.fromRGB(0, 255, 255)},
+    ["Neon"] = {frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)},
+    ["Ice"]  = {frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255)}
 }
 
 local currentTheme = "Dark"
 local yPos = 30
-local themePath = "Nova-X-sys/Theme.txt"
-local logPath = "Nova-X-sys/ExecutionLog.txt"
-
--- === GLOBAL CONSOLE LOGGER (NovaX Monitoring System v2.1 Persistent) ===
+local themePath = sysPath .. "/Theme.txt"
 local logPath = sysPath .. "/ExecutionLog.txt"
-if writefile and readfile and appendfile then
+
+-- === FILE SYSTEM SETUP ===
+if writefile and readfile and makefolder and isfolder and isfile then
     pcall(function()
         if not isfolder(sysPath) then
             makefolder(sysPath)
         end
         if not isfile(logPath) then
-            writefile(logPath, "")
+            writefile(logPath, "NovaX Execution Log\n")
         end
     end)
+end
 
-    local function writeLog(tag, msg)
-        local time = os.date("[%Y-%m-%d %H:%M:%S]")
-        local line = string.format("%s [%s] %s\n", time, tag, tostring(msg))
-        appendfile(logPath, line)
-    end
+-- === GLOBAL CONSOLE LOGGER ===
+local function writeLog(tag, msg)  
+    if not writefile or not appendfile then return end
+    
+    local time = os.date("[%Y-%m-%d %H:%M:%S]")  
+    local line = string.format("%s [%s] %s\n", time, tag, tostring(msg))  
+    
+    pcall(function()
+        appendfile(logPath, line)  
+    end)
+end
 
-    -- перехватываем стандартные функции
-    local oldPrint = print
-    local oldWarn = warn
-    local oldError = error
+-- Перехватываем стандартные функции только если доступны файловые операции
+if writefile and readfile then
+    local oldPrint = print  
+    local oldWarn = warn  
+    local oldError = error  
 
-    function print(...)
-        local msg = table.concat({...}, " ")
-        writeLog("PRINT", msg)
-        oldPrint(...)
-    end
+    print = function(...)  
+        local msg = table.concat({...}, " ")  
+        writeLog("PRINT", msg)  
+        oldPrint(...)  
+    end  
 
-    function warn(...)
-        local msg = table.concat({...}, " ")
-        writeLog("WARN", msg)
-        oldWarn(...)
-    end
+    warn = function(...)  
+        local msg = table.concat({...}, " ")  
+        writeLog("WARN", msg)  
+        oldWarn(...)  
+    end  
 
-    function error(...)
-        local msg = table.concat({...}, " ")
-        writeLog("ERROR", msg)
-        oldError(...)
-    end
+    error = function(...)  
+        local msg = table.concat({...}, " ")  
+        writeLog("ERROR", msg)  
+        oldError(...)  
+    end  
 
     writeLog("SYSTEM", "NovaX Logger initialized (persistent mode).")
 else
     warn("[NovaX] Logging unavailable: missing writefile/appendfile support.")
-end 
+end
 
-if isfile(themePath) then
-local savedTheme = readfile(themePath)
-if themes[savedTheme] then
-currentTheme = savedTheme
-Frame.BackgroundColor3 = themes[savedTheme].frame
-Title.TextColor3 = themes[savedTheme].accent
+-- Загрузка сохраненной темы
+if readfile and isfile and isfile(themePath) then
+    local success, savedTheme = pcall(function()
+        return readfile(themePath)
+    end)
+    if success and themes[savedTheme] then
+        currentTheme = savedTheme
+        Frame.BackgroundColor3 = themes[savedTheme].frame
+        Title.TextColor3 = themes[savedTheme].accent
     end
 end
 
+-- Создание кнопок тем
 for name, _ in pairs(themes) do
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -10, 0, 25)
-btn.Position = UDim2.new(0, 5, 0, yPos)
-btn.Text = name
-btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn.Font = Enum.Font.SourceSans
-btn.TextSize = 16
-btn.Parent = SettingsFrame
-Instance.new("UICorner", btn)
-btn.MouseButton1Click:Connect(function()
-currentTheme = name
-Frame.BackgroundColor3 = themes[name].frame
-Title.TextColor3 = themes[name].accent
-if writefile then writefile(themePath, name) end
-end)
-yPos += 30
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 25)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
+    btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 16
+    btn.Parent = SettingsFrame
+    Instance.new("UICorner", btn)
+    
+    btn.MouseButton1Click:Connect(function()
+        currentTheme = name
+        Frame.BackgroundColor3 = themes[name].frame
+        Title.TextColor3 = themes[name].accent
+        if writefile then 
+            pcall(function()
+                writefile(themePath, name) 
+            end)
+        end
+    end)
+    yPos += 30
 end
 
 -- === EXECUTE BUTTON ===
 Execute.MouseButton1Click:Connect(function()
-local code = ScriptBox.Text
-Execute.Text = "⏳ Running..."
-task.wait(0.3)
-local loader = loadstring or load          -- используем то, что есть
-if not loader then
-    warn("[NovaX] Your executor does not support loadstring or load.")
-    Execute.Text = "❌ Unsupported"
-    return
-end
+    local code = ScriptBox.Text
+    if code == "" or code == "-- Enter Lua code here" then
+        Execute.Text = "⚠️ Empty!"
+        task.wait(1)
+        Execute.Text = "▶ Execute"
+        return
+    end
+    
+    Execute.Text = "⏳ Running..."
+    Execute.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+    
+    local loader = loadstring or load
+    if not loader then
+        warn("[NovaX] Your executor does not support loadstring or load.")
+        Execute.Text = "❌ Unsupported"
+        Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        task.wait(1)
+        Execute.Text = "▶ Execute"
+        Execute.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        return
+    end
 
-local func, err = loader(code)
-if func then
-local ok, result = pcall(func)
-if ok then
-Execute.Text = "✅ Done!"
-if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Success\n") end
-else
-Execute.Text = "⚠️ Runtime error"
-warn(result)
-if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Runtime error: "..tostring(result).."\n") end
-end
-else
-Execute.Text = "❌ Syntax error"
-warn(err)
-if writefile then writefile(logPath, (readfile(logPath) or "") .. os.date().." | Syntax error: "..tostring(err).."\n") end
-end
-task.wait(1)
-Execute.Text = "▶ Execute"
+    local func, err = loader(code)
+    if func then
+        local ok, result = pcall(func)
+        if ok then
+            Execute.Text = "✅ Done!"
+            Execute.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            writeLog("SUCCESS", "Script executed successfully")
+        else
+            Execute.Text = "⚠️ Runtime error"
+            Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            warn("[NovaX] Runtime error: " .. tostring(result))
+            writeLog("RUNTIME_ERROR", result)
+        end
+    else
+        Execute.Text = "❌ Syntax error"
+        Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        warn("[NovaX] Syntax error: " .. tostring(err))
+        writeLog("SYNTAX_ERROR", err)
+    end
+    
+    task.wait(1.5)
+    Execute.Text = "▶ Execute"
+    Execute.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 end)
 
 -- === CLEAR BUTTON ===
 Clear.MouseButton1Click:Connect(function()
-ScriptBox.Text = ""
+    ScriptBox.Text = ""
 end)
 
 -- === SETTINGS TOGGLE ===
 SettingsButton.MouseButton1Click:Connect(function()
-SettingsFrame.Visible = not SettingsFrame.Visible
+    SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
 -- === CLOSE ANIMATION ===
 Close.MouseButton1Click:Connect(function()
-local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
-BackgroundTransparency = 1
-})
-tween:Play()
-task.wait(0.4)
-Frame.Visible = false
-ToggleButton.Visible = true
+    local tween = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset, Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200),
+        BackgroundTransparency = 1
+    })
+    tween:Play()
+    task.wait(0.4)
+    Frame.Visible = false
+    ToggleButton.Visible = true
 end)
 
 -- === TOGGLE OPEN ===
 ToggleButton.MouseButton1Click:Connect(function()
-ToggleButton.Visible = false
-Frame.Visible = true
-Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
-TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-Position = UDim2.new(0.5, -210, 0.5, -160),
-BackgroundTransparency = 0
-}):Play()
+    ToggleButton.Visible = false
+    Frame.Visible = true
+    Frame.BackgroundTransparency = 0
+    Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
+    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -210, 0.5, -160),
+        BackgroundTransparency = 0
+    }):Play()
 end)
 
 -- === DRAGGING FRAME ===
 local dragging, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 and not Close:IsMouseOver() then
-dragging = true
-dragStart = input.Position
-startPos = Frame.Position
-end
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-local delta = input.Position - dragStart
-Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 end)
 
 -- === DRAGGING TOGGLE BUTTON ===
 local draggingToggle = false
 local toggleStart, togglePos
 ToggleButton.InputBegan:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then
-draggingToggle = true
-toggleStart = input.Position
-togglePos = ToggleButton.Position
-end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingToggle = true
+        toggleStart = input.Position
+        togglePos = ToggleButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingToggle = false
+            end
+        end)
+    end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
-local delta = input.Position - toggleStart
-ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
-end
-end)
-UserInputService.InputEnded:Connect(function(input)
-if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingToggle = false end
+    if input.UserInputType == Enum.UserInputType.MouseMovement and draggingToggle then
+        local delta = input.Position - toggleStart
+        ToggleButton.Position = UDim2.new(togglePos.X.Scale, togglePos.X.Offset + delta.X, togglePos.Y.Scale, togglePos.Y.Offset + delta.Y)
+    end
 end)
 
--- ⚙️ функции сохранения и загрузки позиции
-local HttpService = game:GetService("HttpService")
-
+-- === NOVA MORE BUTTON SYSTEM ===
 local function saveButtonPosition(button)
-	if not writefile then return end
-	local data = {
-		X = button.Position.X.Scale,
-		Y = button.Position.Y.Scale,
-		XO = button.Position.X.Offset,
-		YO = button.Position.Y.Offset
-	}
-	writefile(button.Name .. "_pos.json", HttpService:JSONEncode(data))
+    if not writefile then return end
+    local data = {
+        X = button.Position.X.Scale,
+        Y = button.Position.Y.Scale,
+        XO = button.Position.X.Offset,
+        YO = button.Position.Y.Offset
+    }
+    pcall(function()
+        writefile(button.Name .. "_pos.json", HttpService:JSONEncode(data))
+    end)
 end
 
 local function loadButtonPosition(button)
-	if not readfile or not isfile then return end
-	if isfile(button.Name .. "_pos.json") then
-		local raw = readfile(button.Name .. "_pos.json")
-		local data = HttpService:JSONDecode(raw)
-		button.Position = UDim2.new(data.X, data.XO, data.Y, data.YO)
-	end
+    if not readfile or not isfile then return end
+    pcall(function()
+        if isfile(button.Name .. "_pos.json") then
+            local raw = readfile(button.Name .. "_pos.json")
+            local data = HttpService:JSONDecode(raw)
+            button.Position = UDim2.new(data.X, data.XO, data.Y, data.YO)
+        end
+    end)
 end
 
 local function makeDraggable(button)
-	local dragging = false
-	local dragInput, dragStart, startPos
+    local dragging = false
+    local dragInput, dragStart, startPos
 
-	local function update(input)
-		local delta = input.Position - dragStart
-		button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	end
+    local function update(input)
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 
-	button.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = input.Position
-			startPos = button.Position
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = button.Position
 
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-					saveButtonPosition(button)
-				end
-			end)
-		end
-	end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    saveButtonPosition(button)
+                end
+            end)
+        end
+    end)
 
-	button.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement then
-			dragInput = input
-		end
-	end)
+    button.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
 
-	game:GetService("UserInputService").InputChanged:Connect(function(input)
-		if input == dragInput and dragging then
-			update(input)
-		end
-	end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
 end
 
+-- 🧭 NovaMore Button
 local NovaMoreButton = Instance.new("TextButton")
 NovaMoreButton.Name = "NovaMoreButton"
 NovaMoreButton.Text = "🧭"
 NovaMoreButton.Size = UDim2.new(0, 45, 0, 45)
 NovaMoreButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
 NovaMoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-NovaMoreButton.Position = UDim2.new(0.5, -60, 0.5, 60)
+NovaMoreButton.Font = Enum.Font.SourceSansBold
+NovaMoreButton.TextSize = 20
+NovaMoreButton.Position = UDim2.new(0, 20, 0, 80)
+NovaMoreButton.ZIndex = 10
 NovaMoreButton.Parent = ScreenGui
+
+local NovaMoreCorner = Instance.new("UICorner")
+NovaMoreCorner.CornerRadius = UDim.new(0, 10)
+NovaMoreCorner.Parent = NovaMoreButton
 
 makeDraggable(NovaMoreButton)
 loadButtonPosition(NovaMoreButton)
 
--- 🪐 меню NovaMore
+-- 🪐 NovaMore Menu
 local NovaMoreFrame = Instance.new("Frame")
 NovaMoreFrame.Name = "NovaMoreFrame"
 NovaMoreFrame.Size = UDim2.new(0, 250, 0, 180)
 NovaMoreFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 NovaMoreFrame.Position = UDim2.new(0.5, -125, 0.5, -90)
 NovaMoreFrame.Visible = false
+NovaMoreFrame.ZIndex = 15
 NovaMoreFrame.Parent = ScreenGui
 
--- ❌ кнопка закрытия меню
+local NovaMoreFrameCorner = Instance.new("UICorner")
+NovaMoreFrameCorner.CornerRadius = UDim.new(0, 12)
+NovaMoreFrameCorner.Parent = NovaMoreFrame
+
+-- ❌ Close NovaMore Button
 local CloseNovaMore = Instance.new("TextButton")
 CloseNovaMore.Name = "CloseNovaMore"
 CloseNovaMore.Text = "✖"
@@ -453,89 +554,130 @@ CloseNovaMore.Size = UDim2.new(0, 30, 0, 30)
 CloseNovaMore.Position = UDim2.new(1, -35, 0, 5)
 CloseNovaMore.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
 CloseNovaMore.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseNovaMore.Font = Enum.Font.SourceSansBold
+CloseNovaMore.TextSize = 16
 CloseNovaMore.Parent = NovaMoreFrame
 
--- 💡 Кнопка Infinite Yield
+local CloseNovaMoreCorner = Instance.new("UICorner")
+CloseNovaMoreCorner.CornerRadius = UDim.new(0, 8)
+CloseNovaMoreCorner.Parent = CloseNovaMore
+
+-- 💡 Infinite Yield Button
 local InfiniteYieldButton = Instance.new("TextButton")
 InfiniteYieldButton.Text = "⚙️ Infinite Yield"
 InfiniteYieldButton.Size = UDim2.new(0, 200, 0, 35)
 InfiniteYieldButton.Position = UDim2.new(0.5, -100, 0, 50)
 InfiniteYieldButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
 InfiniteYieldButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+InfiniteYieldButton.Font = Enum.Font.SourceSansBold
+InfiniteYieldButton.TextSize = 16
 InfiniteYieldButton.Parent = NovaMoreFrame
 
--- 💫 Кнопка SPIN ALL
+local IYCorner = Instance.new("UICorner")
+IYCorner.CornerRadius = UDim.new(0, 8)
+IYCorner.Parent = InfiniteYieldButton
+
+-- 💫 Spin All Button
 local SpinAllButton = Instance.new("TextButton")
-SpinAllButton.Text = "SPIN ALL"
+SpinAllButton.Text = "💫 SPIN ALL"
 SpinAllButton.Size = UDim2.new(0, 200, 0, 35)
 SpinAllButton.Position = UDim2.new(0.5, -100, 0, 95)
 SpinAllButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
 SpinAllButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpinAllButton.Font = Enum.Font.SourceSansBold
+SpinAllButton.TextSize = 16
 SpinAllButton.Parent = NovaMoreFrame
 
--- 🏭 Кнопка сброса
+local SpinCorner = Instance.new("UICorner")
+SpinCorner.CornerRadius = UDim.new(0, 8)
+SpinCorner.Parent = SpinAllButton
+
+-- 🏭 Factory Reset Button
 local FactoryResetButton = Instance.new("TextButton")
 FactoryResetButton.Text = "🏭 To Factory"
 FactoryResetButton.Size = UDim2.new(0, 200, 0, 35)
 FactoryResetButton.Position = UDim2.new(0.5, -100, 0, 140)
 FactoryResetButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
 FactoryResetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FactoryResetButton.Font = Enum.Font.SourceSansBold
+FactoryResetButton.TextSize = 16
 FactoryResetButton.Parent = NovaMoreFrame
 
--- 🔘 логика кнопок
+local FactoryCorner = Instance.new("UICorner")
+FactoryCorner.CornerRadius = UDim.new(0, 8)
+FactoryCorner.Parent = FactoryResetButton
+
+-- 🔘 NovaMore Button Logic
 NovaMoreButton.MouseButton1Click:Connect(function()
-	NovaMoreFrame.Visible = not NovaMoreFrame.Visible
+    NovaMoreFrame.Visible = not NovaMoreFrame.Visible
 end)
 
 CloseNovaMore.MouseButton1Click:Connect(function()
-	NovaMoreFrame.Visible = false
+    NovaMoreFrame.Visible = false
 end)
 
 InfiniteYieldButton.MouseButton1Click:Connect(function()
-	loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    local success, result = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end)
+    if not success then
+        warn("[NovaX] Failed to load Infinite Yield: " .. tostring(result))
+    end
+    NovaMoreFrame.Visible = false
 end)
 
 SpinAllButton.MouseButton1Click:Connect(function()
-	local Players = game:GetService("Players")
-	local LocalPlayer = Players.LocalPlayer
-
-	task.spawn(function()
-		while task.wait(60) do
-			for _, plr in pairs(Players:GetPlayers()) do
-				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-					local hrp = plr.Character.HumanoidRootPart
-					for i = 1, 120 do
-						if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-							LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(i * 300), 0)
-							task.wait(0.05)
-						end
-					end
-				end
-			end
-		end
-	end)
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    
+    task.spawn(function()
+        while task.wait(0.1) do
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = plr.Character.HumanoidRootPart
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(120), 0)
+                        task.wait(0.05)
+                    end
+                end
+            end
+        end
+    end)
+    NovaMoreFrame.Visible = false
 end)
 
 FactoryResetButton.MouseButton1Click:Connect(function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
+    local success, result = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
+    end)
+    if not success then
+        warn("[NovaX] Failed to load Factory Reset: " .. tostring(result))
+    end
+    NovaMoreFrame.Visible = false
 end)
 
 -- === SYSTEM INTEGRITY WATCHDOG ===
 task.spawn(function()
-while task.wait(5) do -- каждые 2 секунды проверка
-if not isfolder(sysPath) then
-warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
-game:GetService("StarterGui"):SetCore("SendNotification", {
-Title = "NovaX Security",
-Text = "System directory missing. Terminating...",
-Duration = 5
-})
-task.wait(4)
-Frame:Destroy()
-ToggleButton:Destroy()
-warn("[NovaX] Terminated due to integrity failure.")
-break
-end
-end
+    while task.wait(10) do
+        if writefile and readfile and isfolder then
+            local folderExists = pcall(function()
+                return isfolder(sysPath)
+            end)
+            
+            if not folderExists then
+                warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "NovaX Security",
+                    Text = "System directory missing. Terminating...",
+                    Duration = 5
+                })
+                task.wait(4)
+                ScreenGui:Destroy()
+                warn("[NovaX] Terminated due to integrity failure.")
+                break
+            end
+        end
+    end
 end)
 
+print("[NovaX] Interface loaded successfully!")
