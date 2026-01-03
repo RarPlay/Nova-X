@@ -1,17 +1,5 @@
 -- 2.5
 -- Don't touch anything, it will break.
-
-print([[
-
-
----
-__   __                 __   __
-| \ | |                 \ \ / /
-|  \| | _____   ____ _   \ V / 
-| . \ |/ _ \ \ / / _\ |   | |  
-| |\  | (_) \ V / (| |   / . \ 
-|_| \_|\___/ \_/ \__,_| /_/ \_\
-]])
 print("[NovaX] Nova X start!")
 
 game:GetService("StarterGui"):SetCore("SendNotification", {
