@@ -1,5 +1,5 @@
 --[[
-    NovaX - Clean Refactor
+    NovaX - Clean Refactor (Fixed)
     ------------------------------------------------------------
     A Roblox executor UI with:
       * Code box + Execute / Clear
@@ -9,11 +9,19 @@
       * Infinite Yield loader + Factory Reset
       * Integrity check
 
+    Fixes:
+      * resolveGuiParent no longer nests ScreenGui in ScreenGui
+      * Shadow is a sibling of Frame (renders behind it, follows it)
+      * Main window is now draggable by its title bar
+      * loadPosition validates JSON before applying
+      * Frame position is preserved across close/open
+      * Themes iterate in a defined order
+      * Splash ZIndex raised above floating buttons
+      * ScreenGui IgnoreGuiInset = true
+
     Notes:
-      * We intentionally do NOT override the global `error` function,
-        because doing so can break pcall semantics.
-      * The integrity check now correctly inspects the boolean
-        returned by `isfolder`, not just the pcall success flag.
+      * We intentionally do NOT override the global `error` function.
+      * Integrity check inspects the boolean returned by `isfolder`.
 ]]
 
 -- ============================================================
@@ -42,6 +50,9 @@ local THEMES = {
     Neon = { frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)   },
     Ice  = { frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255) },
 }
+
+-- [FIX] defined order for theme buttons
+local THEME_ORDER = { "Dark", "Neon", "Ice" }
 
 -- ============================================================
 -- File-system capabilities
@@ -130,7 +141,6 @@ local function installLoggerHooks()
         oldWarn(...)
     end
 
-    -- Intentionally not overriding `error`.
     writeLog("SYSTEM", "NovaX logger initialized.")
 end
 
@@ -154,39 +164,42 @@ local function new(className, props, parent)
 end
 
 -- ============================================================
--- ScreenGui + splash
+-- [FIX] ScreenGui parent resolution
+--  * No longer nests ScreenGui inside ScreenGui.
+--  * Always returns a valid container.
 -- ============================================================
 local function resolveGuiParent()
     if gethui then
         local ok, hui = pcall(gethui)
         if ok and hui then return hui end
     end
-    local core = game:FindFirstChildOfClass("CoreGui")
-    if core then return core end
+    local ok, core = pcall(function() return game:GetService("CoreGui") end)
+    if ok and core then return core end
     local player = Players.LocalPlayer
     if player then
         local pg = player:FindFirstChildOfClass("PlayerGui")
         if pg then return pg end
     end
-    -- Fallback: create and parent to CoreGui so it actually renders.
-    local temp = Instance.new("ScreenGui")
-    temp.Parent = game:GetService("CoreGui")
-    return temp
+    return nil
 end
 
 local ScreenGui = new("ScreenGui", {
     Name             = "NovaX_UI",
     ResetOnSpawn     = false,
+    IgnoreGuiInset   = true,          -- [FIX]
     ZIndexBehavior   = Enum.ZIndexBehavior.Sibling,
 }, resolveGuiParent())
 
+-- ============================================================
+-- Splash
+-- ============================================================
 do
     local splash = new("ImageLabel", {
-        Size                  = UDim2.new(0, 200, 0, 200),
-        Position              = UDim2.new(0.5, -100, 0.5, -100),
+        Size                   = UDim2.new(0, 200, 0, 200),
+        Position               = UDim2.new(0.5, -100, 0.5, -100),
         BackgroundTransparency = 1,
-        Image                 = CONFIG.SplashImage,
-        ZIndex                = 10,
+        Image                  = CONFIG.SplashImage,
+        ZIndex                 = 100,    -- [FIX] above floating buttons
     }, ScreenGui)
 
     task.spawn(function()
@@ -212,21 +225,35 @@ local Frame = new("Frame", {
     BorderSizePixel  = 0,
     Visible          = false,
     Active           = true,
+    ZIndex           = 1,
 }, ScreenGui)
 corner(Frame, 8)
 
--- Soft shadow
-new("ImageLabel", {
-    Size                  = UDim2.new(1, 30, 1, 30),
-    Position              = UDim2.new(0, -15, 0, -15),
-    BackgroundTransparency = 1,
-    Image                 = CONFIG.SplashImage,
-    ImageColor3           = Color3.fromRGB(0, 0, 0),
-    ScaleType             = Enum.ScaleType.Slice,
-    SliceCenter           = Rect.new(10, 10, 118, 118),
-    ImageTransparency     = 0.5,
-    ZIndex                = -1,
-}, Frame)
+-- ============================================================
+-- [FIX] Soft shadow — sibling of Frame (renders behind it),
+--       follows Frame position/visibility automatically.
+-- ============================================================
+local Shadow = new("Frame", {
+    Size                   = UDim2.new(0, 450, 0, 350),
+    Position               = UDim2.new(0.5, -225, 0.5, -175),
+    BackgroundColor3       = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.55,
+    BorderSizePixel        = 0,
+    Visible                = false,
+    ZIndex                 = 0,
+}, ScreenGui)
+corner(Shadow, 12)
+
+local function syncShadow()
+    Shadow.Position = UDim2.new(
+        Frame.Position.X.Scale, Frame.Position.X.Offset - 15,
+        Frame.Position.Y.Scale, Frame.Position.Y.Offset - 15
+    )
+    Shadow.Visible = Frame.Visible
+end
+Frame:GetPropertyChangedSignal("Position"):Connect(syncShadow)
+Frame:GetPropertyChangedSignal("Visible"):Connect(syncShadow)
+syncShadow()
 
 -- Title bar
 local TitleBar = new("Frame", {
@@ -238,15 +265,15 @@ local TitleBar = new("Frame", {
 corner(TitleBar, 8)
 
 local Title = new("TextLabel", {
-    Text              = CONFIG.Title,
-    Size              = UDim2.new(1, -100, 1, 0),
-    Position          = UDim2.new(0, 10, 0, 0),
-    TextColor3        = THEMES.Dark.accent,
-    Font              = Enum.Font.SourceSansBold,
-    TextSize          = 22,
+    Text                   = CONFIG.Title,
+    Size                   = UDim2.new(1, -100, 1, 0),
+    Position               = UDim2.new(0, 10, 0, 0),
+    TextColor3             = THEMES.Dark.accent,
+    Font                   = Enum.Font.SourceSansBold,
+    TextSize               = 22,
     BackgroundTransparency = 1,
-    TextXAlignment    = Enum.TextXAlignment.Left,
-    ZIndex            = 3,
+    TextXAlignment         = Enum.TextXAlignment.Left,
+    ZIndex                 = 3,
 }, TitleBar)
 
 local SettingsButton = new("TextButton", {
@@ -275,18 +302,18 @@ corner(Close, 8)
 
 -- Script input
 local ScriptBox = new("TextBox", {
-    Size                  = UDim2.new(1, -20, 1, -120),
-    Position              = UDim2.new(0, 10, 0, 50),
-    BackgroundColor3      = Color3.fromRGB(15, 15, 15),
-    TextColor3            = Color3.fromRGB(0, 255, 0),
+    Size                   = UDim2.new(1, -20, 1, -120),
+    Position               = UDim2.new(0, 10, 0, 50),
+    BackgroundColor3       = Color3.fromRGB(15, 15, 15),
+    TextColor3             = Color3.fromRGB(0, 255, 0),
     TextStrokeTransparency = 0.8,
-    MultiLine             = true,
-    ClearTextOnFocus      = false,
-    Text                  = "-- Enter Lua code here",
-    Font                  = Enum.Font.Code,
-    TextSize              = 16,
-    TextXAlignment        = Enum.TextXAlignment.Left,
-    TextYAlignment        = Enum.TextYAlignment.Top,
+    MultiLine              = true,
+    ClearTextOnFocus       = false,
+    Text                   = "-- Enter Lua code here",
+    Font                   = Enum.Font.Code,
+    TextSize               = 16,
+    TextXAlignment         = Enum.TextXAlignment.Left,
+    TextYAlignment         = Enum.TextYAlignment.Top,
 }, Frame)
 corner(ScriptBox, 6)
 
@@ -324,16 +351,16 @@ local SettingsFrame = new("Frame", {
 corner(SettingsFrame, 8)
 
 new("TextLabel", {
-    Size                  = UDim2.new(1, 0, 0, 30),
-    Text                  = "🎨 Theme:",
+    Size                   = UDim2.new(1, 0, 0, 30),
+    Text                   = "🎨 Theme:",
     BackgroundTransparency = 1,
     TextColor3            = Color3.fromRGB(255, 255, 255),
-    Font                  = Enum.Font.SourceSansBold,
-    TextSize              = 16,
+    Font                   = Enum.Font.SourceSansBold,
+    TextSize               = 16,
 }, SettingsFrame)
 
 -- ============================================================
--- Dragging helper (target = what moves, handle = what you grab)
+-- Dragging helper
 -- ============================================================
 local function makeDraggable(target, handle, onRelease)
     handle = handle or target
@@ -368,6 +395,9 @@ local function makeDraggable(target, handle, onRelease)
     end)
 end
 
+-- [FIX] Make the main window draggable via its title bar.
+makeDraggable(Frame, TitleBar)
+
 -- ============================================================
 -- Theme system
 -- ============================================================
@@ -389,14 +419,17 @@ local function loadSavedTheme()
     if not (readfile and isfile) then return end
     if not fileExists(themePath) then return end
     local ok, saved = safeCall(readfile, themePath)
-    if ok and THEMES[saved] then
-        applyTheme(saved)
+    if ok and type(saved) == "string" then
+        saved = saved:gsub("%s+$", "")   -- trim trailing newline
+        if THEMES[saved] then
+            applyTheme(saved)
+        end
     end
 end
 
 do
     local yPos = 30
-    for name in pairs(THEMES) do
+    for _, name in ipairs(THEME_ORDER) do   -- [FIX] deterministic order
         local btn = new("TextButton", {
             Size             = UDim2.new(1, -10, 0, 25),
             Position         = UDim2.new(0, 5, 0, yPos),
@@ -432,15 +465,25 @@ local function savePosition(button)
     )
 end
 
+-- [FIX] Validate decoded JSON before applying it.
 local function loadPosition(button)
     if not (readfile and isfile) then return end
     local path = sysPath .. "/" .. button.Name .. "_pos.json"
     if not fileExists(path) then return end
+
     local ok, raw = safeCall(readfile, path)
-    if not ok then return end
+    if not ok or type(raw) ~= "string" then return end
+
     local ok2, data = safeCall(HttpService.JSONDecode, HttpService, raw)
     if not ok2 or type(data) ~= "table" then return end
-    button.Position = UDim2.new(data.X, data.XO, data.Y, data.YO)
+
+    local X, Y, XO, YO = data.X, data.Y, data.XO, data.YO
+    if type(X) ~= "number" or type(Y) ~= "number"
+       or type(XO) ~= "number" or type(YO) ~= "number" then
+        return
+    end
+
+    button.Position = UDim2.new(X, XO, Y, YO)
 end
 
 -- Toggle button
@@ -484,6 +527,7 @@ local NovaMoreFrame = new("Frame", {
     Position         = UDim2.new(0.5, -125, 0.5, -90),
     BackgroundColor3 = Color3.fromRGB(10, 10, 10),
     Visible          = false,
+    Active           = true,
     ZIndex           = 15,
 }, ScreenGui)
 corner(NovaMoreFrame, 12)
@@ -581,9 +625,16 @@ SettingsButton.MouseButton1Click:Connect(function()
     SettingsFrame.Visible = not SettingsFrame.Visible
 end)
 
+-- ============================================================
+-- [FIX] Close/Open preserves the last dragged position.
+-- ============================================================
+local lastFramePos = nil
+
 Close.MouseButton1Click:Connect(function()
+    lastFramePos = Frame.Position
+
     TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position             = UDim2.new(
+        Position = UDim2.new(
             Frame.Position.X.Scale, Frame.Position.X.Offset,
             Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200
         ),
@@ -591,16 +642,25 @@ Close.MouseButton1Click:Connect(function()
     }):Play()
     task.wait(0.4)
     Frame.Visible = false
+    Frame.BackgroundTransparency = 0
     ToggleButton.Visible = true
 end)
 
 ToggleButton.MouseButton1Click:Connect(function()
     ToggleButton.Visible = false
     Frame.Visible = true
-    Frame.BackgroundTransparency = 0
-    Frame.Position = UDim2.new(0.5, -210, 0.5, -200)
+
+    local finalPos = lastFramePos or UDim2.new(0.5, -210, 0.5, -160)
+    local startPos = UDim2.new(
+        finalPos.X.Scale, finalPos.X.Offset,
+        finalPos.Y.Scale, finalPos.Y.Offset - 40
+    )
+
+    Frame.Position = startPos
+    Frame.BackgroundTransparency = 1
+
     TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position             = UDim2.new(0.5, -210, 0.5, -160),
+        Position = finalPos,
         BackgroundTransparency = 0,
     }):Play()
 end)
@@ -669,9 +729,9 @@ do
             if fileExists(togglePosFile) then delfile(togglePosFile) end
             if fileExists(novaPosFile)   then delfile(novaPosFile)   end
 
-            Frame.BackgroundColor3 = THEMES.Dark.frame
-            Title.TextColor3       = THEMES.Dark.accent
-            currentTheme           = "Dark"
+            Frame.BackgroundColor3  = THEMES.Dark.frame
+            Title.TextColor3        = THEMES.Dark.accent
+            currentTheme            = "Dark"
             ToggleButton.Position   = UDim2.new(0, 20, 0, 20)
             NovaMoreButton.Position = UDim2.new(0, 20, 0, 80)
 
@@ -689,13 +749,13 @@ do
             clearConfirmLabel()
 
             resetConfirmLabel = new("TextLabel", {
-                Size                  = UDim2.new(1, -20, 0, 30),
-                Position              = UDim2.new(0, 10, 0, 150),
+                Size                   = UDim2.new(1, -20, 0, 30),
+                Position               = UDim2.new(0, 10, 0, 145),
                 BackgroundTransparency = 1,
-                Text                  = "⚠️ This will delete all settings!",
-                TextColor3            = Color3.fromRGB(255, 100, 100),
-                Font                  = Enum.Font.SourceSansBold,
-                TextSize              = 14,
+                Text                   = "⚠️ This will delete all settings!",
+                TextColor3             = Color3.fromRGB(255, 100, 100),
+                Font                   = Enum.Font.SourceSansBold,
+                TextSize               = 14,
             }, NovaMoreFrame)
 
             FactoryResetButton.Text = "❌ Confirm Reset"
