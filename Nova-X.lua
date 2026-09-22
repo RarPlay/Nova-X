@@ -1,27 +1,5 @@
 --[[
-    NovaX - Clean Refactor (Fixed)
-    ------------------------------------------------------------
-    A Roblox executor UI with:
-      * Code box + Execute / Clear
-      * Theme switcher (Dark / Neon / Ice) with persistence
-      * Persistent logging (print / warn)
-      * Floating Toggle button + NovaMore quick-tools panel
-      * Infinite Yield loader + Factory Reset
-      * Integrity check
-
-    Fixes:
-      * resolveGuiParent no longer nests ScreenGui in ScreenGui
-      * Shadow is a sibling of Frame (renders behind it, follows it)
-      * Main window is now draggable by its title bar
-      * loadPosition validates JSON before applying
-      * Frame position is preserved across close/open
-      * Themes iterate in a defined order
-      * Splash ZIndex raised above floating buttons
-      * ScreenGui IgnoreGuiInset = true
-
-    Notes:
-      * We intentionally do NOT override the global `error` function.
-      * Integrity check inspects the boolean returned by `isfolder`.
+    NovaX v2 — Full-Screen Tabbed Executor UI  (fixed)
 ]]
 
 -- ============================================================
@@ -32,9 +10,10 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService      = game:GetService("HttpService")
 local StarterGui       = game:GetService("StarterGui")
 local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
 
 -- ============================================================
--- Configuration
+-- Config
 -- ============================================================
 local CONFIG = {
     Title             = "NovaX",
@@ -43,6 +22,7 @@ local CONFIG = {
     IntegrityInterval = 10,
     SplashImage       = "rbxassetid://1316045217",
     IYUrl             = "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source",
+    ScriptBloxAPI     = "https://scriptblox-api-proxy.vercel.app/api",
 }
 
 local THEMES = {
@@ -50,19 +30,64 @@ local THEMES = {
     Neon = { frame = Color3.fromRGB(10, 10, 30), accent = Color3.fromRGB(255, 0, 255)   },
     Ice  = { frame = Color3.fromRGB(30, 40, 50), accent = Color3.fromRGB(150, 255, 255) },
 }
-
--- [FIX] defined order for theme buttons
 local THEME_ORDER = { "Dark", "Neon", "Ice" }
 
 -- ============================================================
--- File-system capabilities
+-- [FIX] Forward declarations
+-- ============================================================
+local currentTheme = "Dark"
+local currentLang  = "RU"
+local pages        = {}
+local applyTheme
+local saveConfig
+local glowToggle
+local glowEnabled  = true
+local ToggleButton
+
+-- ============================================================
+-- i18n
+-- ============================================================
+local LOCALES = {
+    RU = { execute="Выполнить", clear="Очистить", empty="Пусто!", running="Выполняется...",
+           done="Готово!", syntax="Синтаксис", runtime="Ошибка", settings="Настройки",
+           browser="Браузер", script="ScriptBlox", iy="Infinite Yield", search="Поиск...",
+           fullscreen="Полный экран", glow="Свечение", language="Язык", autoexec="Автозапуск",
+           save="Сохранить", open="Открыть", runNow="Запустить", newTab="Новая вкладка" },
+    EN = { execute="Execute", clear="Clear", empty="Empty!", running="Running...",
+           done="Done!", syntax="Syntax Error", runtime="Runtime Error", settings="Settings",
+           browser="Browser", script="ScriptBlox", iy="Infinite Yield", search="Search...",
+           fullscreen="Full Screen", glow="Glow", language="Language", autoexec="Autoexec",
+           save="Save", open="Open", runNow="Run Now", newTab="New Tab" },
+    DE = { execute="Ausführen", clear="Löschen", empty="Leer!", running="Läuft...",
+           done="Fertig!", syntax="Syntaxfehler", runtime="Laufzeitfehler",
+           settings="Einstellungen", browser="Browser", script="ScriptBlox", iy="Infinite Yield",
+           search="Suchen...", fullscreen="Vollbild", glow="Leuchten", language="Sprache",
+           autoexec="Autostart", save="Speichern", open="Öffnen", runNow="Jetzt starten",
+           newTab="Neuer Tab" },
+    ES = { execute="Ejecutar", clear="Limpiar", empty="¡Vacío!", running="Ejecutando...",
+           done="¡Hecho!", syntax="Error de sintaxis", runtime="Error en tiempo de ejecución",
+           settings="Ajustes", browser="Navegador", script="ScriptBlox", iy="Infinite Yield",
+           search="Buscar...", fullscreen="Pantalla completa", glow="Brillo", language="Idioma",
+           autoexec="Autoinicio", save="Guardar", open="Abrir", runNow="Ejecutar ahora",
+           newTab="Nueva pestaña" },
+}
+
+local function t(key)
+    local loc = LOCALES[currentLang] or LOCALES.EN
+    return loc[key] or key
+end
+
+-- ============================================================
+-- File system
 -- ============================================================
 local hasWrite = writefile and appendfile
-local hasRead  = readfile and isfile and isfolder
 
 local sysPath   = CONFIG.SysFolder
 local themePath = sysPath .. "/Theme.txt"
 local logPath   = sysPath .. "/ExecutionLog.txt"
+local tabsPath  = sysPath .. "/tabs.json"
+local execPath  = sysPath .. "/autoexec.txt"
+local cfgPath   = sysPath .. "/config.json"
 
 local logLineCount = 0
 
@@ -80,16 +105,10 @@ end
 -- ============================================================
 -- Logging
 -- ============================================================
-local function toStr(v)
-    local ok, s = pcall(tostring, v)
-    return ok and s or "<?>"
-end
-
+local function toStr(v) local ok, s = pcall(tostring, v) return ok and s or "<?>" end
 local function joinArgs(...)
     local parts = {}
-    for i = 1, select("#", ...) do
-        parts[i] = toStr(select(i, ...))
-    end
+    for i = 1, select("#", ...) do parts[i] = toStr(select(i, ...)) end
     return table.concat(parts, " ")
 end
 
@@ -102,12 +121,7 @@ end
 
 local function writeLog(tag, msg)
     if not hasWrite then return end
-    local line = string.format(
-        "[%s] [%s] %s\n",
-        os.date("%Y-%m-%d %H:%M:%S"),
-        tag,
-        toStr(msg)
-    )
+    local line = string.format("[%s] [%s] %s\n", os.date("%Y-%m-%d %H:%M:%S"), tag, toStr(msg))
     safeCall(appendfile, logPath, line)
     logLineCount += 1
     rotateLogIfNeeded()
@@ -115,37 +129,21 @@ end
 
 local function setupFileSystem()
     if not (writefile and makefolder and isfolder) then return end
-    if not isfolder(sysPath) then
-        safeCall(makefolder, sysPath)
-    end
-    if not fileExists(logPath) then
-        safeCall(writefile, logPath, "NovaX Execution Log\n")
-    end
+    if not isfolder(sysPath) then safeCall(makefolder, sysPath) end
+    if not fileExists(logPath)  then safeCall(writefile, logPath,  "NovaX Execution Log\n") end
+    if not fileExists(tabsPath) then safeCall(writefile, tabsPath, "{}") end
 end
 
 local function installLoggerHooks()
-    if not hasWrite then
-        warn("[NovaX] Logging unavailable: missing writefile/appendfile support.")
-        return
-    end
-
+    if not hasWrite then return end
     local oldPrint, oldWarn = print, warn
-
-    print = function(...)
-        writeLog("PRINT", joinArgs(...))
-        oldPrint(...)
-    end
-
-    warn = function(...)
-        writeLog("WARN", joinArgs(...))
-        oldWarn(...)
-    end
-
+    print = function(...) writeLog("PRINT", joinArgs(...)); oldPrint(...) end
+    warn  = function(...) writeLog("WARN",  joinArgs(...)); oldWarn(...)  end
     writeLog("SYSTEM", "NovaX logger initialized.")
 end
 
 -- ============================================================
--- UI construction helpers
+-- UI helpers
 -- ============================================================
 local function corner(parent, radius)
     local c = Instance.new("UICorner")
@@ -156,18 +154,11 @@ end
 
 local function new(className, props, parent)
     local inst = Instance.new(className)
-    for k, v in pairs(props or {}) do
-        inst[k] = v
-    end
+    for k, v in pairs(props or {}) do inst[k] = v end
     if parent then inst.Parent = parent end
     return inst
 end
 
--- ============================================================
--- [FIX] ScreenGui parent resolution
---  * No longer nests ScreenGui inside ScreenGui.
---  * Always returns a valid container.
--- ============================================================
 local function resolveGuiParent()
     if gethui then
         local ok, hui = pcall(gethui)
@@ -183,236 +174,825 @@ local function resolveGuiParent()
     return nil
 end
 
-local ScreenGui = new("ScreenGui", {
-    Name             = "NovaX_UI",
-    ResetOnSpawn     = false,
-    IgnoreGuiInset   = true,          -- [FIX]
-    ZIndexBehavior   = Enum.ZIndexBehavior.Sibling,
-}, resolveGuiParent())
+-- ============================================================
+-- ScreenGui + Splash
+-- ============================================================
+local guiParent = resolveGuiParent()
+if not guiParent then
+    -- [FIX] last-resort fallback so UI still shows
+    local player = Players.LocalPlayer
+    guiParent = player and player:WaitForChild("PlayerGui") or Instance.new("Folder")
+    if guiParent.ClassName == "Folder" then
+        guiParent = game:GetService("CoreGui")
+    end
+end
 
--- ============================================================
--- Splash
--- ============================================================
+local ScreenGui = new("ScreenGui", {
+    Name           = "NovaX_UI",
+    ResetOnSpawn   = false,
+    IgnoreGuiInset = true,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, guiParent)
+
 do
     local splash = new("ImageLabel", {
         Size                   = UDim2.new(0, 200, 0, 200),
         Position               = UDim2.new(0.5, -100, 0.5, -100),
         BackgroundTransparency = 1,
         Image                  = CONFIG.SplashImage,
-        ZIndex                 = 100,    -- [FIX] above floating buttons
+        ZIndex                 = 200,
     }, ScreenGui)
 
     task.spawn(function()
-        TweenService:Create(splash, TweenInfo.new(1), {
-            Size = UDim2.new(0, 300, 0, 300),
-        }):Play()
+        TweenService:Create(splash, TweenInfo.new(1), { Size = UDim2.new(0, 300, 0, 300) }):Play()
         task.wait(1)
-        TweenService:Create(splash, TweenInfo.new(0.5), {
-            ImageTransparency = 1,
-        }):Play()
+        TweenService:Create(splash, TweenInfo.new(0.5), { ImageTransparency = 1 }):Play()
         task.wait(0.5)
         splash:Destroy()
     end)
 end
 
 -- ============================================================
--- Main window
+-- Main Window + Glow
 -- ============================================================
 local Frame = new("Frame", {
-    Size             = UDim2.new(0, 420, 0, 320),
-    Position         = UDim2.new(0.5, -210, 0.5, -160),
-    BackgroundColor3 = THEMES.Dark.frame,
-    BorderSizePixel  = 0,
-    Visible          = false,
-    Active           = true,
-    ZIndex           = 1,
-}, ScreenGui)
-corner(Frame, 8)
-
--- ============================================================
--- [FIX] Soft shadow — sibling of Frame (renders behind it),
---       follows Frame position/visibility automatically.
--- ============================================================
-local Shadow = new("Frame", {
-    Size                   = UDim2.new(0, 450, 0, 350),
-    Position               = UDim2.new(0.5, -225, 0.5, -175),
-    BackgroundColor3       = Color3.fromRGB(0, 0, 0),
-    BackgroundTransparency = 0.55,
+    Name                   = "MainFrame",
+    Size                   = UDim2.fromScale(1, 1),
+    Position               = UDim2.fromScale(0, 0),
+    BackgroundColor3       = THEMES.Dark.frame,
+    BackgroundTransparency = 0.15,
     BorderSizePixel        = 0,
     Visible                = false,
-    ZIndex                 = 0,
+    Active                 = true,
+    ZIndex                 = 1,
 }, ScreenGui)
-corner(Shadow, 12)
 
-local function syncShadow()
-    Shadow.Position = UDim2.new(
-        Frame.Position.X.Scale, Frame.Position.X.Offset - 15,
-        Frame.Position.Y.Scale, Frame.Position.Y.Offset - 15
-    )
-    Shadow.Visible = Frame.Visible
-end
-Frame:GetPropertyChangedSignal("Position"):Connect(syncShadow)
-Frame:GetPropertyChangedSignal("Visible"):Connect(syncShadow)
-syncShadow()
+-- [FIX] initial thickness = 3 so glow is visible by default
+local GlowStroke = new("UIStroke", {
+    Thickness       = 3,
+    Color           = Color3.fromRGB(0, 255, 255),
+    Transparency    = 0.4,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, Frame)
 
--- Title bar
-local TitleBar = new("Frame", {
-    Size             = UDim2.new(1, 0, 0, 40),
-    BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+-- ============================================================
+-- Sidebar
+-- ============================================================
+local Sidebar = new("Frame", {
+    Name             = "Sidebar",
+    Size             = UDim2.new(0, 140, 1, 0),
+    BackgroundColor3 = Color3.fromRGB(15, 15, 15),
     BorderSizePixel  = 0,
     ZIndex           = 2,
 }, Frame)
-corner(TitleBar, 8)
 
-local Title = new("TextLabel", {
+local SidebarTitle = new("TextLabel", {
+    Size                   = UDim2.new(1, 0, 0, 50),
+    BackgroundTransparency = 1,
     Text                   = CONFIG.Title,
-    Size                   = UDim2.new(1, -100, 1, 0),
-    Position               = UDim2.new(0, 10, 0, 0),
     TextColor3             = THEMES.Dark.accent,
     Font                   = Enum.Font.SourceSansBold,
     TextSize               = 22,
-    BackgroundTransparency = 1,
-    TextXAlignment         = Enum.TextXAlignment.Left,
     ZIndex                 = 3,
-}, TitleBar)
+}, Sidebar)
 
-local SettingsButton = new("TextButton", {
-    Text             = "⚙️",
-    Size             = UDim2.new(0, 40, 0, 40),
-    Position         = UDim2.new(1, -80, 0, 0),
-    BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+local CloseBtn = new("TextButton", {
+    Text             = "✕",
+    Size             = UDim2.new(0, 30, 0, 30),
+    Position         = UDim2.new(1, -35, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(200, 50, 50),
     TextColor3       = Color3.fromRGB(255, 255, 255),
     Font             = Enum.Font.SourceSansBold,
-    TextSize         = 20,
+    TextSize         = 16,
     ZIndex           = 3,
-}, TitleBar)
-corner(SettingsButton, 8)
+}, Sidebar)
+corner(CloseBtn, 6)
 
-local Close = new("TextButton", {
-    Text             = "X",
-    Size             = UDim2.new(0, 40, 0, 40),
-    Position         = UDim2.new(1, -40, 0, 0),
-    BackgroundColor3 = Color3.fromRGB(255, 50, 50),
-    TextColor3       = Color3.fromRGB(255, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 22,
-    ZIndex           = 3,
-}, TitleBar)
-corner(Close, 8)
+local categoryDefs = {
+    { key = "execute",  icon = "▶",  label = "Execute"        },
+    { key = "script",   icon = "S",  label = "ScriptBlox"     }, -- [FIX] ASCII-safe
+    { key = "iy",       icon = "Y",  label = "Infinite Yield" },
+    { key = "settings", icon = "*",  label = "Settings"       },
+    { key = "browser",  icon = "B",  label = "Browser"        },
+}
 
--- Script input
+local categoryButtons = {}
+local currentCategory = "execute"
+
+local function switchCategory(key)
+    currentCategory = key
+    local theme = THEMES[currentTheme] or THEMES.Dark
+    for k, btn in pairs(categoryButtons) do
+        btn.BackgroundColor3 = (k == key) and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(25, 25, 25)
+        btn.TextColor3       = (k == key) and theme.accent or Color3.fromRGB(200, 200, 200)
+    end
+    for k, page in pairs(pages) do
+        page.Visible = (k == key)
+    end
+end
+
+local yOffset = 60
+for _, def in ipairs(categoryDefs) do
+    local btn = new("TextButton", {
+        Name             = "Cat_" .. def.key,
+        Size             = UDim2.new(1, -10, 0, 36),
+        Position         = UDim2.new(0, 5, 0, yOffset),
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+        TextColor3       = Color3.fromRGB(200, 200, 200),
+        Text             = def.icon .. "  " .. def.label,
+        Font             = Enum.Font.SourceSans,
+        TextSize         = 14,
+        TextXAlignment   = Enum.TextXAlignment.Left,
+        ZIndex           = 3,
+    }, Sidebar)
+    corner(btn, 6)
+    btn.MouseButton1Click:Connect(function() switchCategory(def.key) end)
+    categoryButtons[def.key] = btn
+    yOffset += 42
+end
+
+-- ============================================================
+-- Content
+-- ============================================================
+local Content = new("Frame", {
+    Name                   = "Content",
+    Size                   = UDim2.new(1, -140, 1, 0),
+    Position               = UDim2.new(0, 140, 0, 0),
+    BackgroundTransparency = 1,
+    ZIndex                 = 2,
+}, Frame)
+
+local function makePage(key)
+    local p = new("Frame", {
+        Name                   = "Page_" .. key,
+        Size                   = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Visible                = false,
+        ZIndex                 = 2,
+    }, Content)
+    pages[key] = p
+    return p
+end
+
+-- ============================================================
+-- Page: Execute
+-- ============================================================
+local execPage = makePage("execute")
+
+local TabBar = new("ScrollingFrame", {
+    Size                   = UDim2.new(1, -20, 0, 36),
+    Position               = UDim2.new(0, 10, 0, 10),
+    BackgroundTransparency = 1,
+    CanvasSize             = UDim2.new(0, 0, 0, 0),
+    ScrollBarThickness     = 0,
+    ZIndex                 = 3,
+}, execPage)
+
+new("UIListLayout", {
+    FillDirection = Enum.FillDirection.Horizontal,
+    Padding       = UDim.new(0, 4),
+    SortOrder     = Enum.SortOrder.LayoutOrder,
+}, TabBar)
+
 local ScriptBox = new("TextBox", {
-    Size                   = UDim2.new(1, -20, 1, -120),
-    Position               = UDim2.new(0, 10, 0, 50),
-    BackgroundColor3       = Color3.fromRGB(15, 15, 15),
+    Size                   = UDim2.new(1, -20, 1, -130),
+    Position               = UDim2.new(0, 10, 0, 56),
+    BackgroundColor3       = Color3.fromRGB(12, 12, 12),
     TextColor3             = Color3.fromRGB(0, 255, 0),
     TextStrokeTransparency = 0.8,
     MultiLine              = true,
     ClearTextOnFocus       = false,
-    Text                   = "-- Enter Lua code here",
+    Text                   = "",
     Font                   = Enum.Font.Code,
     TextSize               = 16,
     TextXAlignment         = Enum.TextXAlignment.Left,
     TextYAlignment         = Enum.TextYAlignment.Top,
-}, Frame)
+    ZIndex                 = 3,
+}, execPage)
 corner(ScriptBox, 6)
 
--- Action buttons
-local Execute = new("TextButton", {
-    Text             = "▶ Execute",
-    Size             = UDim2.new(0, 120, 0, 35),
-    Position         = UDim2.new(0, 40, 1, -45),
+local ExecuteBtn = new("TextButton", {
+    Text             = "> " .. t("execute"),
+    Size             = UDim2.new(0, 140, 0, 36),
+    Position         = UDim2.new(0, 10, 1, -46),
     BackgroundColor3 = Color3.fromRGB(0, 170, 255),
     TextColor3       = Color3.fromRGB(255, 255, 255),
     Font             = Enum.Font.SourceSansBold,
-    TextSize         = 18,
-}, Frame)
-corner(Execute, 8)
+    TextSize         = 16,
+    ZIndex           = 3,
+}, execPage)
+corner(ExecuteBtn, 8)
 
-local Clear = new("TextButton", {
-    Text             = "🧹 Clear",
-    Size             = UDim2.new(0, 120, 0, 35),
-    Position         = UDim2.new(1, -160, 1, -45),
-    BackgroundColor3 = Color3.fromRGB(255, 80, 80),
+local ClearBtn = new("TextButton", {
+    Text             = "X " .. t("clear"),
+    Size             = UDim2.new(0, 120, 0, 36),
+    Position         = UDim2.new(1, -130, 1, -46),
+    BackgroundColor3 = Color3.fromRGB(200, 60, 60),
     TextColor3       = Color3.fromRGB(255, 255, 255),
     Font             = Enum.Font.SourceSansBold,
-    TextSize         = 18,
-}, Frame)
-corner(Clear, 8)
-
--- Settings panel
-local SettingsFrame = new("Frame", {
-    Size             = UDim2.new(0, 150, 0, 160),
-    Position         = UDim2.new(1, -160, 0, 45),
-    BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-    Visible          = false,
-    ZIndex           = 5,
-}, Frame)
-corner(SettingsFrame, 8)
-
-new("TextLabel", {
-    Size                   = UDim2.new(1, 0, 0, 30),
-    Text                   = "🎨 Theme:",
-    BackgroundTransparency = 1,
-    TextColor3            = Color3.fromRGB(255, 255, 255),
-    Font                   = Enum.Font.SourceSansBold,
-    TextSize               = 16,
-}, SettingsFrame)
+    TextSize         = 16,
+    ZIndex           = 3,
+}, execPage)
+corner(ClearBtn, 8)
 
 -- ============================================================
--- Dragging helper
+-- Tab persistence
 -- ============================================================
-local function makeDraggable(target, handle, onRelease)
-    handle = handle or target
-    local dragging, dragStart, startPos
+local tabsData   = {}
+local activeTabId = nil
+local tabButtons = {}
 
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-           or input.UserInputType == Enum.UserInputType.Touch then
-            dragging  = true
-            dragStart = input.Position
-            startPos  = target.Position
+local function saveTabs()
+    if not hasWrite then return end
+    safeCall(writefile, tabsPath, HttpService:JSONEncode(tabsData))
+end
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    if onRelease then onRelease() end
-                end
-            end)
+local function loadTabs()
+    if not (readfile and isfile) then return end
+    if not fileExists(tabsPath) then return end
+    local ok, raw = safeCall(readfile, tabsPath)
+    if not ok or type(raw) ~= "string" then return end
+    local ok2, data = safeCall(HttpService.JSONDecode, HttpService, raw)
+    if ok2 and type(data) == "table" then tabsData = data end
+end
+
+local function rebuildTabBar()
+    for _, btn in pairs(tabButtons) do btn:Destroy() end
+    tabButtons = {}
+
+    -- [FIX] stable ordering: sort by key
+    local ids = {}
+    for id in pairs(tabsData) do ids[#ids + 1] = id end
+    table.sort(ids)
+
+    local order = 0
+    for _, id in ipairs(ids) do
+        local tab = tabsData[id]
+        order += 1
+        local btn = new("TextButton", {
+            Name             = "Tab_" .. id,
+            Size             = UDim2.new(0, 90, 1, -4),
+            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            TextColor3       = Color3.fromRGB(200, 200, 200),
+            Text             = tab.name or ("Tab " .. order),
+            Font             = Enum.Font.SourceSans,
+            TextSize         = 13,
+            LayoutOrder      = order,
+            ZIndex           = 4,
+        }, TabBar)
+        corner(btn, 5)
+
+        btn.MouseButton1Click:Connect(function()
+            if activeTabId and tabsData[activeTabId] then
+                tabsData[activeTabId].code = ScriptBox.Text
+            end
+            activeTabId = id
+            ScriptBox.Text = tabsData[id].code or ""
+            for _, b in pairs(tabButtons) do
+                b.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            end
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            saveTabs()
+        end)
+        tabButtons[id] = btn
+    end
+
+    local addBtn = new("TextButton", {
+        Size             = UDim2.new(0, 36, 1, -4),
+        BackgroundColor3 = Color3.fromRGB(50, 80, 50),
+        TextColor3       = Color3.fromRGB(255, 255, 255),
+        Text             = "+",
+        Font             = Enum.Font.SourceSansBold,
+        TextSize         = 18,
+        LayoutOrder      = 9999,
+        ZIndex           = 4,
+    }, TabBar)
+    corner(addBtn, 5)
+
+    addBtn.MouseButton1Click:Connect(function()
+        if activeTabId and tabsData[activeTabId] then
+            tabsData[activeTabId].code = ScriptBox.Text
         end
+        local id = tostring(tick())
+        tabsData[id] = { name = t("newTab"), code = "" }
+        activeTabId = id
+        saveTabs()
+        rebuildTabBar()
+        ScriptBox.Text = ""
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
-        if not dragging then return end
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-           or input.UserInputType == Enum.UserInputType.Touch then
-            local delta = input.Position - dragStart
-            target.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
+    if not activeTabId then
+        local firstId = ids[1]
+        if firstId then
+            activeTabId = firstId
+            ScriptBox.Text = tabsData[firstId].code or ""
+            if tabButtons[firstId] then
+                tabButtons[firstId].BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            end
+        end
+    end
+end
+
+-- ============================================================
+-- Page: ScriptBlox
+-- ============================================================
+local scriptPage = makePage("script")
+
+-- [FIX] Named so scriptPage.SearchBox works later
+local SearchBox = new("TextBox", {
+    Name             = "SearchBox",
+    Size             = UDim2.new(1, -100, 0, 34),
+    Position         = UDim2.new(0, 10, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    PlaceholderText  = t("search"),
+    Text             = "",
+    Font             = Enum.Font.SourceSans,
+    TextSize         = 15,
+    ZIndex           = 3,
+}, scriptPage)
+corner(SearchBox, 6)
+
+local SearchBtn = new("TextButton", {
+    Text             = "Search",
+    Size             = UDim2.new(0, 60, 0, 34),
+    Position         = UDim2.new(1, -70, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(0, 170, 255),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 14,
+    ZIndex           = 3,
+}, scriptPage)
+corner(SearchBtn, 6)
+
+local ResultsFrame = new("ScrollingFrame", {
+    Size                   = UDim2.new(1, -20, 1, -60),
+    Position               = UDim2.new(0, 10, 0, 54),
+    BackgroundTransparency = 1,
+    CanvasSize             = UDim2.new(0, 0, 0, 0),
+    ScrollBarThickness     = 6,
+    ZIndex                 = 3,
+}, scriptPage)
+new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, ResultsFrame)
+
+local function clearResults()
+    for _, child in pairs(ResultsFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+end
+
+local function addScriptCard(scriptData, order)
+    local card = new("Frame", {
+        Size             = UDim2.new(1, 0, 0, 80),
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+        LayoutOrder      = order,
+        ZIndex           = 4,
+    }, ResultsFrame)
+    corner(card, 8)
+
+    new("TextLabel", {
+        Size                   = UDim2.new(1, -10, 0, 22),
+        Position               = UDim2.new(0, 5, 0, 4),
+        BackgroundTransparency = 1,
+        Text                   = scriptData.title or "Untitled",
+        TextColor3             = Color3.fromRGB(255, 255, 255),
+        Font                   = Enum.Font.SourceSansBold,
+        TextSize               = 14,
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        ZIndex                 = 5,
+    }, card)
+
+    new("TextLabel", {
+        Size                   = UDim2.new(1, -10, 0, 18),
+        Position               = UDim2.new(0, 5, 0, 26),
+        BackgroundTransparency = 1,
+        Text                   = (scriptData.game and scriptData.game.name) or "Unknown Game",
+        TextColor3             = Color3.fromRGB(180, 180, 180),
+        Font                   = Enum.Font.SourceSans,
+        TextSize               = 12,
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        ZIndex                 = 5,
+    }, card)
+
+    local openBtn = new("TextButton", {
+        Text             = "Open",
+        Size             = UDim2.new(0, 110, 0, 26),
+        Position         = UDim2.new(1, -120, 0, 48),
+        BackgroundColor3 = Color3.fromRGB(0, 150, 200),
+        TextColor3       = Color3.fromRGB(255, 255, 255),
+        Font             = Enum.Font.SourceSansBold,
+        TextSize         = 12,
+        ZIndex           = 5,
+    }, card)
+    corner(openBtn, 5)
+
+    local runBtn = new("TextButton", {
+        Text             = "Run",
+        Size             = UDim2.new(0, 90, 0, 26),
+        Position         = UDim2.new(1, -215, 0, 48),
+        BackgroundColor3 = Color3.fromRGB(0, 180, 80),
+        TextColor3       = Color3.fromRGB(255, 255, 255),
+        Font             = Enum.Font.SourceSansBold,
+        TextSize         = 12,
+        ZIndex           = 5,
+    }, card)
+    corner(runBtn, 5)
+
+    openBtn.MouseButton1Click:Connect(function()
+        if activeTabId and tabsData[activeTabId] then tabsData[activeTabId].code = ScriptBox.Text end
+        local id = tostring(tick())
+        tabsData[id] = { name = scriptData.title or "Script", code = scriptData.script or "-- No code" }
+        activeTabId = id
+        saveTabs()
+        rebuildTabBar()
+        ScriptBox.Text = tabsData[id].code
+        switchCategory("execute")
+    end)
+
+    runBtn.MouseButton1Click:Connect(function()
+        local loader = loadstring or load
+        if loader and scriptData.script then
+            local fn = loader(scriptData.script)
+            if fn then pcall(fn) end
         end
     end)
 end
 
--- [FIX] Make the main window draggable via its title bar.
-makeDraggable(Frame, TitleBar)
+SearchBtn.MouseButton1Click:Connect(function()
+    local query = SearchBox.Text
+    if query == "" then return end
+    clearResults()
+
+    task.spawn(function()
+        local url = CONFIG.ScriptBloxAPI .. "/search?q=" .. HttpService:UrlEncode(query) .. "&max=10"
+        local ok, response = pcall(function() return game:HttpGet(url) end)
+        if not ok then warn("[NovaX] ScriptBlox request failed.") return end
+        local ok2, data = pcall(function() return HttpService:JSONDecode(response) end)
+        if not ok2 or not data or not data.result or not data.result.scripts then return end
+        local order = 0
+        for _, script in ipairs(data.result.scripts) do
+            order += 1
+            addScriptCard(script, order)
+        end
+    end)
+end)
 
 -- ============================================================
--- Theme system
+-- Page: Infinite Yield
 -- ============================================================
-local currentTheme = "Dark"
+local iyPage = makePage("iy")
 
-local function applyTheme(name)
-    local t = THEMES[name]
-    if not t then return end
-    currentTheme = name
-    Frame.BackgroundColor3 = t.frame
-    Title.TextColor3       = t.accent
+new("TextLabel", {
+    Size                   = UDim2.new(1, -20, 0, 60),
+    Position               = UDim2.new(0, 10, 0, 10),
+    BackgroundTransparency = 1,
+    Text                   = "Infinite Yield\nMost powerful admin commands.",
+    TextColor3             = Color3.fromRGB(200, 200, 200),
+    Font                   = Enum.Font.SourceSans,
+    TextSize               = 16,
+    TextYAlignment         = Enum.TextYAlignment.Top,
+    ZIndex                 = 3,
+}, iyPage)
 
+local IYBtn = new("TextButton", {
+    Text             = "Run Infinite Yield",
+    Size             = UDim2.new(0, 260, 0, 44),
+    Position         = UDim2.new(0.5, -130, 0, 90),
+    BackgroundColor3 = Color3.fromRGB(80, 60, 160),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 17,
+    ZIndex           = 3,
+}, iyPage)
+corner(IYBtn, 8)
+
+IYBtn.MouseButton1Click:Connect(function()
+    local loader = loadstring or load
+    if not loader then warn("[NovaX] No loadstring for IY.") return end
+    pcall(function()
+        local src = game:HttpGet(CONFIG.IYUrl)
+        local fn = loader(src)
+        if fn then fn() end
+    end)
+end)
+
+-- ============================================================
+-- Page: Settings
+-- ============================================================
+local settingsPage = makePage("settings")
+
+local SettingsScroll = new("ScrollingFrame", {
+    Size                   = UDim2.new(1, -20, 1, -20),
+    Position               = UDim2.new(0, 10, 0, 10),
+    BackgroundTransparency = 1,
+    CanvasSize             = UDim2.new(0, 0, 0, 700),
+    ScrollBarThickness     = 6,
+    ZIndex                 = 3,
+}, settingsPage)
+new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, SettingsScroll)
+
+local function sectionHeader(text, order)
+    return new("TextLabel", {
+        Size                   = UDim2.new(1, 0, 0, 28),
+        BackgroundTransparency = 1,
+        Text                   = text,
+        TextColor3             = (THEMES[currentTheme] or THEMES.Dark).accent,
+        Font                   = Enum.Font.SourceSansBold,
+        TextSize               = 16,
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        LayoutOrder            = order,
+        ZIndex                 = 4,
+    }, SettingsScroll)
+end
+
+sectionHeader("Theme", 1)
+
+local themeRow = new("Frame", {
+    Size                   = UDim2.new(1, 0, 0, 34),
+    BackgroundTransparency = 1,
+    LayoutOrder            = 2,
+    ZIndex                 = 4,
+}, SettingsScroll)
+
+local themeX = 0
+for _, name in ipairs(THEME_ORDER) do
+    local btn = new("TextButton", {
+        Size             = UDim2.new(0, 90, 0, 30),
+        Position         = UDim2.new(0, themeX, 0, 2),
+        BackgroundColor3 = Color3.fromRGB(50, 50, 50),
+        TextColor3       = Color3.fromRGB(255, 255, 255),
+        Text             = name,
+        Font             = Enum.Font.SourceSans,
+        TextSize         = 14,
+        ZIndex           = 5,
+    }, themeRow)
+    corner(btn, 6)
+    btn.MouseButton1Click:Connect(function()
+        if applyTheme then applyTheme(name) end
+    end)
+    themeX += 96
+end
+
+sectionHeader("Fullscreen / Glow", 3)
+
+local glowRow = new("Frame", {
+    Size                   = UDim2.new(1, 0, 0, 34),
+    BackgroundTransparency = 1,
+    LayoutOrder            = 4,
+    ZIndex                 = 4,
+}, SettingsScroll)
+
+-- [FIX] assign to forward-declared local
+glowToggle = new("TextButton", {
+    Text             = "Glow: ON",
+    Size             = UDim2.new(0, 120, 0, 30),
+    Position         = UDim2.new(0, 0, 0, 2),
+    BackgroundColor3 = Color3.fromRGB(0, 150, 80),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 14,
+    ZIndex           = 5,
+}, glowRow)
+corner(glowToggle, 6)
+
+glowToggle.MouseButton1Click:Connect(function()
+    glowEnabled = not glowEnabled
+    glowToggle.Text = "Glow: " .. (glowEnabled and "ON" or "OFF")
+    glowToggle.BackgroundColor3 = glowEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(80, 30, 30)
+    GlowStroke.Thickness = glowEnabled and 3 or 0
+    if saveConfig then saveConfig() end
+end)
+
+local colorRow = new("Frame", {
+    Size                   = UDim2.new(1, 0, 0, 34),
+    BackgroundTransparency = 1,
+    LayoutOrder            = 5,
+    ZIndex                 = 4,
+}, SettingsScroll)
+
+local glowColors = {
+    { name = "Cyan",   c = Color3.fromRGB(0, 255, 255) },
+    { name = "Pink",   c = Color3.fromRGB(255, 0, 150) },
+    { name = "Lime",   c = Color3.fromRGB(0, 255, 80)  },
+    { name = "Gold",   c = Color3.fromRGB(255, 200, 0) },
+    { name = "Purple", c = Color3.fromRGB(180, 0, 255) },
+}
+local cx = 0
+for _, gc in ipairs(glowColors) do
+    local cb = new("TextButton", {
+        Size             = UDim2.new(0, 70, 0, 28),
+        Position         = UDim2.new(0, cx, 0, 3),
+        BackgroundColor3 = gc.c,
+        TextColor3       = Color3.fromRGB(0, 0, 0),
+        Text             = gc.name,
+        Font             = Enum.Font.SourceSansBold,
+        TextSize         = 11,
+        ZIndex           = 5,
+    }, colorRow)
+    corner(cb, 5)
+    cb.MouseButton1Click:Connect(function()
+        GlowStroke.Color = gc.c
+        if saveConfig then saveConfig() end
+    end)
+    cx += 76
+end
+
+sectionHeader("Language", 6)
+
+local langRow = new("Frame", {
+    Size                   = UDim2.new(1, 0, 0, 34),
+    BackgroundTransparency = 1,
+    LayoutOrder            = 7,
+    ZIndex                 = 4,
+}, SettingsScroll)
+
+local lx = 0
+for code in pairs(LOCALES) do
+    local lb = new("TextButton", {
+        Size             = UDim2.new(0, 60, 0, 30),
+        Position         = UDim2.new(0, lx, 0, 2),
+        BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+        TextColor3       = Color3.fromRGB(255, 255, 255),
+        Text             = code,
+        Font             = Enum.Font.SourceSansBold,
+        TextSize         = 14,
+        ZIndex           = 5,
+    }, langRow)
+    corner(lb, 6)
+    lb.MouseButton1Click:Connect(function()
+        currentLang = code
+        if saveConfig then saveConfig() end
+        ExecuteBtn.Text = "> " .. t("execute")
+        ClearBtn.Text   = "X " .. t("clear")
+        -- [FIX] name lookup instead of index
+        local sb = scriptPage:FindFirstChild("SearchBox")
+        if sb then sb.PlaceholderText = t("search") end
+    end)
+    lx += 66
+end
+
+sectionHeader("Autoexec", 8)
+
+local AutoExecBox = new("TextBox", {
+    Size             = UDim2.new(1, -20, 0, 90),
+    BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+    TextColor3       = Color3.fromRGB(0, 255, 0),
+    Text             = "",
+    PlaceholderText  = "-- Auto-execute script on load",
+    MultiLine        = true,
+    ClearTextOnFocus = false,
+    Font             = Enum.Font.Code,
+    TextSize         = 13,
+    TextXAlignment   = Enum.TextXAlignment.Left,
+    TextYAlignment   = Enum.TextYAlignment.Top,
+    LayoutOrder      = 9,
+    ZIndex           = 4,
+}, SettingsScroll)
+corner(AutoExecBox, 6)
+
+local SaveAutoBtn = new("TextButton", {
+    Text             = t("save"),
+    Size             = UDim2.new(0, 140, 0, 32),
+    BackgroundColor3 = Color3.fromRGB(0, 150, 200),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 15,
+    LayoutOrder      = 10,
+    ZIndex           = 5,
+}, SettingsScroll)
+corner(SaveAutoBtn, 6)
+
+SaveAutoBtn.MouseButton1Click:Connect(function()
     if hasWrite then
-        safeCall(writefile, themePath, name)
+        safeCall(writefile, execPath, AutoExecBox.Text)
+        SaveAutoBtn.Text = "Saved!"
+        task.wait(1.5)
+        SaveAutoBtn.Text = t("save")
     end
+end)
+
+local ResetBtn = new("TextButton", {
+    Text             = "Factory Reset",
+    Size             = UDim2.new(0, 160, 0, 32),
+    BackgroundColor3 = Color3.fromRGB(90, 30, 30),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 14,
+    LayoutOrder      = 11,
+    ZIndex           = 5,
+}, SettingsScroll)
+corner(ResetBtn, 6)
+
+-- ============================================================
+-- Page: Browser
+-- ============================================================
+local browserPage = makePage("browser")
+
+local UrlBox = new("TextBox", {
+    Size             = UDim2.new(1, -100, 0, 34),
+    Position         = UDim2.new(0, 10, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    PlaceholderText  = "https://...",
+    Text             = "",
+    Font             = Enum.Font.SourceSans,
+    TextSize         = 14,
+    ZIndex           = 3,
+}, browserPage)
+corner(UrlBox, 6)
+
+new("TextButton", {
+    Text             = "Go",
+    Size             = UDim2.new(0, 40, 0, 34),
+    Position         = UDim2.new(1, -50, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(0, 170, 255),
+    TextColor3       = Color3.fromRGB(255, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 16,
+    ZIndex           = 3,
+}, browserPage)
+
+local BrowserPlaceholder = new("Frame", {
+    Size             = UDim2.new(1, -20, 1, -60),
+    Position         = UDim2.new(0, 10, 0, 54),
+    BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+    ZIndex           = 3,
+}, browserPage)
+corner(BrowserPlaceholder, 8)
+
+new("TextLabel", {
+    Size                   = UDim2.new(1, -20, 1, -20),
+    Position               = UDim2.new(0, 10, 0, 10),
+    BackgroundTransparency = 1,
+    Text                   = "Browser placeholder\n\nRoblox cannot render real web pages\ninside ViewportFrame.",
+    TextColor3             = Color3.fromRGB(150, 150, 150),
+    Font                   = Enum.Font.SourceSans,
+    TextSize               = 14,
+    ZIndex                 = 4,
+}, BrowserPlaceholder)
+
+-- ============================================================
+-- Config persistence
+-- ============================================================
+local cfg = {
+    theme       = "Dark",
+    glowEnabled = true,
+    glowColor   = { 0, 255, 255 },
+    lang        = "RU",
+}
+
+-- [FIX] plain function (assign to forward-declared local)
+function saveConfig()
+    if not hasWrite then return end
+    cfg.theme       = currentTheme
+    cfg.glowEnabled = glowEnabled
+    cfg.glowColor   = { GlowStroke.Color.R * 255, GlowStroke.Color.G * 255, GlowStroke.Color.B * 255 }
+    cfg.lang        = currentLang
+    safeCall(writefile, cfgPath, HttpService:JSONEncode(cfg))
+end
+
+local function loadConfig()
+    if not (readfile and isfile) then return end
+    if not fileExists(cfgPath) then return end
+    local ok, raw = safeCall(readfile, cfgPath)
+    if not ok or type(raw) ~= "string" then return end
+    local ok2, data = safeCall(HttpService.JSONDecode, HttpService, raw)
+    if not ok2 or type(data) ~= "table" then return end
+
+    if data.theme and THEMES[data.theme] and applyTheme then applyTheme(data.theme) end
+    if data.lang and LOCALES[data.lang] then currentLang = data.lang end
+    if data.glowEnabled ~= nil then
+        glowEnabled = data.glowEnabled
+        if glowToggle then
+            glowToggle.Text = "Glow: " .. (glowEnabled and "ON" or "OFF")
+            glowToggle.BackgroundColor3 = glowEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(80, 30, 30)
+        end
+        GlowStroke.Thickness = glowEnabled and 3 or 0
+    end
+    if data.glowColor then
+        GlowStroke.Color = Color3.fromRGB(
+            data.glowColor[1] or 0,
+            data.glowColor[2] or 255,
+            data.glowColor[3] or 255
+        )
+    end
+end
+
+-- ============================================================
+-- Theme
+-- ============================================================
+-- [FIX] plain function (assign to forward-declared local)
+function applyTheme(name)
+    local t2 = THEMES[name]
+    if not t2 then return end
+    currentTheme = name
+    Frame.BackgroundColor3  = t2.frame
+    SidebarTitle.TextColor3 = t2.accent
+    if categoryButtons[currentCategory] then
+        categoryButtons[currentCategory].TextColor3 = t2.accent
+    end
+    if hasWrite then safeCall(writefile, themePath, name) end
+    if saveConfig then saveConfig() end
 end
 
 local function loadSavedTheme()
@@ -420,356 +1000,142 @@ local function loadSavedTheme()
     if not fileExists(themePath) then return end
     local ok, saved = safeCall(readfile, themePath)
     if ok and type(saved) == "string" then
-        saved = saved:gsub("%s+$", "")   -- trim trailing newline
-        if THEMES[saved] then
-            applyTheme(saved)
-        end
-    end
-end
-
-do
-    local yPos = 30
-    for _, name in ipairs(THEME_ORDER) do   -- [FIX] deterministic order
-        local btn = new("TextButton", {
-            Size             = UDim2.new(1, -10, 0, 25),
-            Position         = UDim2.new(0, 5, 0, yPos),
-            Text             = name,
-            BackgroundColor3 = Color3.fromRGB(50, 50, 50),
-            TextColor3       = Color3.fromRGB(255, 255, 255),
-            Font             = Enum.Font.SourceSans,
-            TextSize         = 16,
-        }, SettingsFrame)
-        corner(btn, 6)
-        btn.MouseButton1Click:Connect(function()
-            applyTheme(name)
-        end)
-        yPos += 30
+        saved = saved:gsub("%s+$", "")
+        if THEMES[saved] then applyTheme(saved) end
     end
 end
 
 -- ============================================================
--- Floating buttons
+-- Execute logic
 -- ============================================================
-local function savePosition(button)
-    if not hasWrite then return end
-    local data = {
-        X  = button.Position.X.Scale,
-        Y  = button.Position.Y.Scale,
-        XO = button.Position.X.Offset,
-        YO = button.Position.Y.Offset,
-    }
-    safeCall(
-        writefile,
-        sysPath .. "/" .. button.Name .. "_pos.json",
-        HttpService:JSONEncode(data)
-    )
-end
-
--- [FIX] Validate decoded JSON before applying it.
-local function loadPosition(button)
-    if not (readfile and isfile) then return end
-    local path = sysPath .. "/" .. button.Name .. "_pos.json"
-    if not fileExists(path) then return end
-
-    local ok, raw = safeCall(readfile, path)
-    if not ok or type(raw) ~= "string" then return end
-
-    local ok2, data = safeCall(HttpService.JSONDecode, HttpService, raw)
-    if not ok2 or type(data) ~= "table" then return end
-
-    local X, Y, XO, YO = data.X, data.Y, data.XO, data.YO
-    if type(X) ~= "number" or type(Y) ~= "number"
-       or type(XO) ~= "number" or type(YO) ~= "number" then
-        return
-    end
-
-    button.Position = UDim2.new(X, XO, Y, YO)
-end
-
--- Toggle button
-local ToggleButton = new("TextButton", {
-    Name             = "ToggleButton",
-    Size             = UDim2.new(0, 45, 0, 45),
-    Position         = UDim2.new(0, 20, 0, 20),
-    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-    Text             = "🪐",
-    TextColor3       = Color3.fromRGB(0, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 22,
-    ZIndex           = 10,
-}, ScreenGui)
-corner(ToggleButton, 10)
-loadPosition(ToggleButton)
-makeDraggable(ToggleButton, nil, function() savePosition(ToggleButton) end)
-
--- NovaMore button
-local NovaMoreButton = new("TextButton", {
-    Name             = "NovaMoreButton",
-    Size             = UDim2.new(0, 45, 0, 45),
-    Position         = UDim2.new(0, 20, 0, 80),
-    BackgroundColor3 = Color3.fromRGB(0, 255, 255),
-    Text             = "🧭",
-    TextColor3       = Color3.fromRGB(255, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 20,
-    ZIndex           = 10,
-}, ScreenGui)
-corner(NovaMoreButton, 10)
-loadPosition(NovaMoreButton)
-makeDraggable(NovaMoreButton, nil, function() savePosition(NovaMoreButton) end)
-
--- ============================================================
--- NovaMore quick-tools panel
--- ============================================================
-local NovaMoreFrame = new("Frame", {
-    Name             = "NovaMoreFrame",
-    Size             = UDim2.new(0, 250, 0, 180),
-    Position         = UDim2.new(0.5, -125, 0.5, -90),
-    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-    Visible          = false,
-    Active           = true,
-    ZIndex           = 15,
-}, ScreenGui)
-corner(NovaMoreFrame, 12)
-
-local CloseNovaMore = new("TextButton", {
-    Name             = "CloseNovaMore",
-    Text             = "✖",
-    Size             = UDim2.new(0, 30, 0, 30),
-    Position         = UDim2.new(1, -35, 0, 5),
-    BackgroundColor3 = Color3.fromRGB(80, 30, 30),
-    TextColor3       = Color3.fromRGB(255, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 16,
-}, NovaMoreFrame)
-corner(CloseNovaMore, 8)
-
-local InfiniteYieldButton = new("TextButton", {
-    Text             = "⚙️ Infinite Yield",
-    Size             = UDim2.new(0, 200, 0, 35),
-    Position         = UDim2.new(0.5, -100, 0, 50),
-    BackgroundColor3 = Color3.fromRGB(60, 60, 90),
-    TextColor3       = Color3.fromRGB(255, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 16,
-}, NovaMoreFrame)
-corner(InfiniteYieldButton, 8)
-
-local FactoryResetButton = new("TextButton", {
-    Text             = "🔄 Factory Reset",
-    Size             = UDim2.new(0, 200, 0, 35),
-    Position         = UDim2.new(0.5, -100, 0, 100),
-    BackgroundColor3 = Color3.fromRGB(90, 30, 30),
-    TextColor3       = Color3.fromRGB(255, 255, 255),
-    Font             = Enum.Font.SourceSansBold,
-    TextSize         = 16,
-}, NovaMoreFrame)
-corner(FactoryResetButton, 8)
-
--- ============================================================
--- Event handlers
--- ============================================================
-Execute.MouseButton1Click:Connect(function()
+ExecuteBtn.MouseButton1Click:Connect(function()
     local code = ScriptBox.Text
-    if code == "" or code == "-- Enter Lua code here" then
-        Execute.Text = "⚠️ Empty!"
+    if code == "" then
+        ExecuteBtn.Text = t("empty")
         task.wait(1)
-        Execute.Text = "▶ Execute"
+        ExecuteBtn.Text = "> " .. t("execute")
         return
     end
 
-    Execute.Text = "⏳ Running..."
-    Execute.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+    ExecuteBtn.Text = t("running")
+    ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
 
     local loader = loadstring or load
     if not loader then
-        warn("[NovaX] Executor lacks loadstring/load.")
-        Execute.Text = "❌ Unsupported"
-        Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        ExecuteBtn.Text = "Unsupported"
+        ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         task.wait(1)
-        Execute.Text = "▶ Execute"
-        Execute.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        ExecuteBtn.Text = "> " .. t("execute")
+        ExecuteBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
         return
     end
 
     local fn, err = loader(code)
     if not fn then
-        Execute.Text = "❌ Syntax error"
-        Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        warn("[NovaX] Syntax error: " .. tostring(err))
+        ExecuteBtn.Text = t("syntax")
+        ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         writeLog("SYNTAX_ERROR", err)
     else
         local ok, result = pcall(fn)
         if ok then
-            Execute.Text = "✅ Done!"
-            Execute.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-            writeLog("SUCCESS", "Script executed successfully.")
+            ExecuteBtn.Text = t("done")
+            ExecuteBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            writeLog("SUCCESS", "Script executed.")
         else
-            Execute.Text = "⚠️ Runtime error"
-            Execute.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            warn("[NovaX] Runtime error: " .. tostring(result))
+            ExecuteBtn.Text = t("runtime")
+            ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             writeLog("RUNTIME_ERROR", result)
         end
     end
 
+    if activeTabId and tabsData[activeTabId] then
+        tabsData[activeTabId].code = code
+        saveTabs()
+    end
+
     task.wait(1.5)
-    Execute.Text = "▶ Execute"
-    Execute.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    ExecuteBtn.Text = "> " .. t("execute")
+    ExecuteBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 end)
 
-Clear.MouseButton1Click:Connect(function()
+ClearBtn.MouseButton1Click:Connect(function()
     ScriptBox.Text = ""
-end)
-
-SettingsButton.MouseButton1Click:Connect(function()
-    SettingsFrame.Visible = not SettingsFrame.Visible
+    if activeTabId and tabsData[activeTabId] then
+        tabsData[activeTabId].code = ""
+        saveTabs()
+    end
 end)
 
 -- ============================================================
--- [FIX] Close/Open preserves the last dragged position.
+-- Close / Open
 -- ============================================================
-local lastFramePos = nil
+CloseBtn.MouseButton1Click:Connect(function()
+    if activeTabId and tabsData[activeTabId] then
+        tabsData[activeTabId].code = ScriptBox.Text
+        saveTabs()
+    end
 
-Close.MouseButton1Click:Connect(function()
-    lastFramePos = Frame.Position
-
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = UDim2.new(
-            Frame.Position.X.Scale, Frame.Position.X.Offset,
-            Frame.Position.Y.Scale, Frame.Position.Y.Offset - 200
-        ),
+    TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         BackgroundTransparency = 1,
     }):Play()
-    task.wait(0.4)
+    task.wait(0.3)
     Frame.Visible = false
-    Frame.BackgroundTransparency = 0
-    ToggleButton.Visible = true
+    if ToggleButton then ToggleButton.Visible = true end
 end)
+
+-- ============================================================
+-- Floating Toggle Button
+-- ============================================================
+-- [FIX] assign to forward-declared local
+ToggleButton = new("TextButton", {
+    Name             = "ToggleButton",
+    Size             = UDim2.new(0, 50, 0, 50),
+    Position         = UDim2.new(0, 20, 0, 20),
+    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+    Text             = "NX",
+    TextColor3       = Color3.fromRGB(0, 255, 255),
+    Font             = Enum.Font.SourceSansBold,
+    TextSize         = 20,
+    ZIndex           = 100,
+}, ScreenGui)
+corner(ToggleButton, 12)
 
 ToggleButton.MouseButton1Click:Connect(function()
     ToggleButton.Visible = false
     Frame.Visible = true
-
-    local finalPos = lastFramePos or UDim2.new(0.5, -210, 0.5, -160)
-    local startPos = UDim2.new(
-        finalPos.X.Scale, finalPos.X.Offset,
-        finalPos.Y.Scale, finalPos.Y.Offset - 40
-    )
-
-    Frame.Position = startPos
-    Frame.BackgroundTransparency = 1
-
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = finalPos,
-        BackgroundTransparency = 0,
-    }):Play()
-end)
-
-NovaMoreButton.MouseButton1Click:Connect(function()
-    NovaMoreFrame.Visible = not NovaMoreFrame.Visible
-end)
-
-CloseNovaMore.MouseButton1Click:Connect(function()
-    NovaMoreFrame.Visible = false
-end)
-
-InfiniteYieldButton.MouseButton1Click:Connect(function()
-    local loader = loadstring or load
-    if not loader then
-        warn("[NovaX] Infinite Yield: no loadstring available.")
-        NovaMoreFrame.Visible = false
-        return
-    end
-
-    local ok, err = pcall(function()
-        local src = game:HttpGet(CONFIG.IYUrl)
-        local fn = loader(src)
-        if fn then fn() end
-    end)
-
-    if not ok then
-        warn("[NovaX] Failed to load Infinite Yield: " .. tostring(err))
-    end
-    NovaMoreFrame.Visible = false
+    Frame.BackgroundTransparency = 0.15
+    TweenService:Create(Frame, TweenInfo.new(0.3), { BackgroundTransparency = 0.15 }):Play()
 end)
 
 -- ============================================================
--- Factory Reset (two-step confirmation)
+-- Factory Reset
 -- ============================================================
 do
-    local resetConfirmLabel = nil
-
-    local function clearConfirmLabel()
-        if resetConfirmLabel and resetConfirmLabel.Parent then
-            resetConfirmLabel:Destroy()
-        end
-        resetConfirmLabel = nil
-    end
-
-    local function resetButtonToIdle()
-        FactoryResetButton.Text = "🔄 Factory Reset"
-        FactoryResetButton.BackgroundColor3 = Color3.fromRGB(90, 30, 30)
-    end
-
-    local function performReset()
-        if not (writefile and delfile and isfolder) then
-            FactoryResetButton.Text = "❌ No Permission"
-            FactoryResetButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            task.wait(2)
-            resetButtonToIdle()
-            return
-        end
-
-        safeCall(function()
-            if fileExists(logPath)   then delfile(logPath)   end
-            if fileExists(themePath) then delfile(themePath) end
-
-            local togglePosFile = sysPath .. "/ToggleButton_pos.json"
-            local novaPosFile   = sysPath .. "/NovaMoreButton_pos.json"
-            if fileExists(togglePosFile) then delfile(togglePosFile) end
-            if fileExists(novaPosFile)   then delfile(novaPosFile)   end
-
-            Frame.BackgroundColor3  = THEMES.Dark.frame
-            Title.TextColor3        = THEMES.Dark.accent
-            currentTheme            = "Dark"
-            ToggleButton.Position   = UDim2.new(0, 20, 0, 20)
-            NovaMoreButton.Position = UDim2.new(0, 20, 0, 80)
-
-            FactoryResetButton.Text = "✅ Reset Complete!"
-            FactoryResetButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            writeLog("SYSTEM", "Factory reset performed.")
-
-            task.wait(2)
-            resetButtonToIdle()
-        end)
-    end
-
-    FactoryResetButton.MouseButton1Click:Connect(function()
-        if FactoryResetButton.Text == "🔄 Factory Reset" then
-            clearConfirmLabel()
-
-            resetConfirmLabel = new("TextLabel", {
-                Size                   = UDim2.new(1, -20, 0, 30),
-                Position               = UDim2.new(0, 10, 0, 145),
-                BackgroundTransparency = 1,
-                Text                   = "⚠️ This will delete all settings!",
-                TextColor3             = Color3.fromRGB(255, 100, 100),
-                Font                   = Enum.Font.SourceSansBold,
-                TextSize               = 14,
-            }, NovaMoreFrame)
-
-            FactoryResetButton.Text = "❌ Confirm Reset"
-            FactoryResetButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-
-            task.delay(5, function()
-                if FactoryResetButton.Text == "❌ Confirm Reset" then
-                    resetButtonToIdle()
-                    clearConfirmLabel()
+    local confirmState = false
+    ResetBtn.MouseButton1Click:Connect(function()
+        if not confirmState then
+            confirmState = true
+            ResetBtn.Text = "Confirm Reset"
+            ResetBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            task.delay(4, function()
+                if confirmState then
+                    confirmState = false
+                    ResetBtn.Text = "Factory Reset"
+                    ResetBtn.BackgroundColor3 = Color3.fromRGB(90, 30, 30)
                 end
             end)
-        elseif FactoryResetButton.Text == "❌ Confirm Reset" then
-            clearConfirmLabel()
-            performReset()
+        else
+            confirmState = false
+            if hasWrite and delfile then
+                for _, p in ipairs({ logPath, themePath, tabsPath, execPath, cfgPath }) do
+                    if fileExists(p) then safeCall(delfile, p) end
+                end
+            end
+            applyTheme("Dark")
+            ResetBtn.Text = "Done!"
+            task.wait(1.5)
+            ResetBtn.Text = "Factory Reset"
+            ResetBtn.BackgroundColor3 = Color3.fromRGB(90, 30, 30)
         end
     end)
 end
@@ -779,21 +1145,19 @@ end
 -- ============================================================
 task.spawn(function()
     if not (writefile and isfolder) then return end
-
     while task.wait(CONFIG.IntegrityInterval) do
         local ok, exists = pcall(isfolder, sysPath)
         if not ok or not exists then
-            warn("[NovaX][CRITICAL] System directory missing. Self-termination initiated.")
+            warn("[NovaX][CRITICAL] System directory missing.")
             pcall(function()
                 StarterGui:SetCore("SendNotification", {
-                    Title    = "NovaX Security",
-                    Text     = "System directory missing. Terminating...",
+                    Title = "NovaX Security",
+                    Text = "System directory missing. Terminating...",
                     Duration = 5,
                 })
             end)
             task.wait(4)
             ScreenGui:Destroy()
-            warn("[NovaX] Terminated due to integrity failure.")
             break
         end
     end
@@ -804,14 +1168,32 @@ end)
 -- ============================================================
 setupFileSystem()
 installLoggerHooks()
+loadTabs()
+rebuildTabBar()
 loadSavedTheme()
+loadConfig()
+
+if readfile and fileExists(execPath) then
+    local ok, code = safeCall(readfile, execPath)
+    if ok and code and code ~= "" then
+        task.spawn(function()
+            local loader = loadstring or load
+            if loader then
+                local fn = loader(code)
+                if fn then pcall(fn) end
+            end
+        end)
+    end
+end
+
+switchCategory("execute")
 
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title    = "NovaX",
-        Text     = "Loading Successfully!",
+        Title = "NovaX",
+        Text = "Loaded successfully!",
         Duration = 5,
     })
 end)
 
-print("[NovaX] Interface loaded successfully!")
+print("[NovaX] v2 loaded.")
