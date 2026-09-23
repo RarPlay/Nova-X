@@ -1,18 +1,9 @@
 --[[
-    NovaX v3.7 — Production-Ready (Full Rewrite + All Fixes)
+    NovaX v3.7.1 — Executor-Compatible (No Type Annotations)
     ================================================================
-    Исправления в v3.7:
-      • Устранена бесконечная рекурсия в rebuildTabBar
-      • Исправлен addHover для AnchorPoint = 0.5
-      • os.time() заменён на DateTime.now().UnixTimestamp
-      • loadstring обёрнут в pcall
-      • Улучшен urlEncode fallback (RFC 3986)
-      • Добавлена защита ToggleButton
-      • Улучшена асинхронность addScriptCard
-      • Добавлено логирование в safeHttpGet
-      • Строгая типизация Luau
-      • Модульная структура кода
-      • Все критические операции обёрнуты в pcall
+    Полностью совместим с любым экзекьютором.
+    Убраны: type annotations, export type, continue, :: type cast
+    Сохранены: все логические фиксы v3.7
     ================================================================
 ]]
 
@@ -24,14 +15,13 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService      = game:GetService("HttpService")
 local StarterGui       = game:GetService("StarterGui")
 local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
 
 -- ============================================================
 -- Config
 -- ============================================================
 local CONFIG = {
     Title              = "NovaX",
-    Version            = "3.7",
+    Version            = "3.7.1",
     SysFolder          = "Nova-X-sys",
     MaxLogLines        = 500,
     IntegrityInterval  = 10,
@@ -82,57 +72,31 @@ local closeGlow
 local CloseBtn
 
 -- ============================================================
--- Типы (Luau)
+-- Utilities
 -- ============================================================
-export type LogTag = "SYSTEM" | "SUCCESS" | "SYNTAX_ERROR" | "RUNTIME_ERROR" | "HTTP" | "BROWSER" | "IY_ERROR" | "CRITICAL" | "WARN" | "INFO"
-export type ThemeName = "Dark" | "Neon" | "Ice"
-export type LangCode = "RU" | "EN" | "DE" | "ES"
-
--- ============================================================
--- Безопасные утилиты
--- ============================================================
-
---[=[
-    Универсальный HTTP-резолвер с логированием.
-    @param url string — URL для запроса
-    @return string | nil — тело ответа или nil при ошибке
-]=]
-local function safeHttpGet(url: string): string?
+local function safeHttpGet(url)
     local executors = {
-        { name = "game:HttpGet", fn = function() return game:HttpGet(url) end },
-        { name = "game:HttpGetAsync", fn = function() return game:HttpGetAsync(url) end },
-        { name = "HttpService:GetAsync", fn = function() return HttpService:GetAsync(url) end },
+        function() return game:HttpGet(url) end,
+        function() return game:HttpGetAsync(url) end,
+        function() return HttpService:GetAsync(url) end,
     }
 
-    for _, executor in ipairs(executors) do
-        local ok, res = pcall(executor.fn)
+    for _, fn in ipairs(executors) do
+        local ok, res = pcall(fn)
         if ok and type(res) == "string" and #res > 0 then
             return res
         end
-        -- Логируем неудачную попытку (только если это не первая ошибка)
-        if not ok then
-            warn(string.format("[NovaX] %s failed: %s", executor.name, tostring(res)))
-        end
     end
 
-    warn(string.format("[NovaX] All HTTP executors failed for URL: %s", url))
+    warn("[NovaX] All HTTP executors failed for URL: " .. tostring(url))
     return nil
 end
 
---[=[
-    Безопасное чтение числа с clamp.
-    @param v any — значение для преобразования
-    @return number — число в диапазоне [0, 255]
-]=]
-local function clampColor(v: any): number
+local function clampColor(v)
     return math.clamp(tonumber(v) or 0, 0, 255)
 end
 
---[=[
-    Безопасный загрузчик кода.
-    @return function | nil — функция loadstring или load
-]=]
-local function getLoader(): (any) -> any
+local function getLoader()
     local loader = loadstring or load
     if not loader then
         pcall(function()
@@ -146,54 +110,32 @@ local function getLoader(): (any) -> any
     return loader
 end
 
---[=[
-    Генератор уникальных ID без коллизий.
-    @return string — GUID без фигурных скобок
-]=]
-local function makeId(): string
+local function makeId()
     local ok, guid = pcall(function()
         return HttpService:GenerateGUID(false)
     end)
-    if ok and guid and #guid > 0 then
+    if ok and type(guid) == "string" and #guid > 0 then
         return guid
     end
-    -- Fallback: используем timestamp + случайное число
     return string.format("%d_%d", DateTime.now().UnixTimestamp, math.random(100000, 999999))
 end
 
---[=[
-    Ручное URL-кодирование (fallback для HttpService.UrlEncode).
-    Соответствует RFC 3986, пробелы кодируются как %20.
-    @param str string — строка для кодирования
-    @return string — закодированная строка
-]=]
-local function urlEncode(str: string): string
+local function urlEncode(str)
     if HttpService.UrlEncode then
         local ok, encoded = pcall(function()
             return HttpService:UrlEncode(str)
         end)
-        if ok and encoded then
+        if ok and type(encoded) == "string" then
             return encoded
         end
     end
 
-    -- Ручная реализация RFC 3986
-    local encoded = str:gsub("([^%w%-%._~])", function(c: string): string
+    return (str:gsub("([^%w%-%._~])", function(c)
         return string.format("%%%02X", string.byte(c))
-    end)
-
-    -- Заменяем пробелы на %20 (gsub выше уже кодирует их как %20, но на всякий случай)
-    encoded = encoded:gsub("%%20", "%%20") -- идемпотентно
-
-    return encoded
+    end))
 end
 
---[=[
-    Безопасное получение родителя для GUI.
-    @return Instance | nil — gethui(), CoreGui или PlayerGui
-]=]
-local function resolveGuiParent(): Instance?
-    -- Попытка 1: gethui()
+local function resolveGuiParent()
     if gethui then
         local ok, hui = pcall(gethui)
         if ok and typeof(hui) == "Instance" and hui.Parent ~= nil then
@@ -201,10 +143,9 @@ local function resolveGuiParent(): Instance?
         end
     end
 
-    -- Попытка 2: CoreGui
     local ok2, core = pcall(function() return game:GetService("CoreGui") end)
     if ok2 and core then
-        local ok3, test = pcall(function()
+        local ok3 = pcall(function()
             local sg = Instance.new("ScreenGui")
             sg.Parent = core
             sg:Destroy()
@@ -212,7 +153,6 @@ local function resolveGuiParent(): Instance?
         if ok3 then return core end
     end
 
-    -- Попытка 3: PlayerGui
     local player = Players.LocalPlayer
     if player then
         local pg = player:FindFirstChildOfClass("PlayerGui")
@@ -222,22 +162,20 @@ local function resolveGuiParent(): Instance?
     return nil
 end
 
---[=[
-    Безопасные шрифты с fallback.
-]=]
+-- Safe fonts
 local FONT_REGULAR, FONT_BOLD
 do
     local ok1 = pcall(function() FONT_REGULAR = Enum.Font.BuilderSans end)
-    if not ok1 then FONT_REGULAR = Enum.Font.Gotham end
+    if not ok1 or not FONT_REGULAR then FONT_REGULAR = Enum.Font.Gotham end
 
     local ok2 = pcall(function() FONT_BOLD = Enum.Font.BuilderSansBold end)
-    if not ok2 then FONT_BOLD = Enum.Font.GothamBold end
+    if not ok2 or not FONT_BOLD then FONT_BOLD = Enum.Font.GothamBold end
 end
 
 -- ============================================================
 -- i18n
 -- ============================================================
-local LOCALES: { [LangCode]: { [string]: string } } = {
+local LOCALES = {
     RU = { execute="Выполнить", clear="Очистить", empty="Пусто!", running="Выполняется...",
            done="Готово!", syntax="Синтаксис", runtime="Ошибка", settings="Настройки",
            browser="Браузер", script="ScriptBlox", iy="Infinite Yield", search="Поиск...",
@@ -264,7 +202,7 @@ local LOCALES: { [LangCode]: { [string]: string } } = {
            newTab="Nueva pestaña", theme="Tema" },
 }
 
-local function t(key: string): string
+local function t(key)
     local loc = LOCALES[currentLang] or LOCALES.EN
     return loc[key] or key
 end
@@ -281,7 +219,7 @@ local FS = {
     delete  = delfile,
     append  = appendfile,
 }
-local hasFS: boolean = FS.write ~= nil and FS.read ~= nil and FS.exists ~= nil and FS.folder ~= nil and FS.mkdir ~= nil
+local hasFS = FS.write and FS.read and FS.exists and FS.folder and FS.mkdir
 
 local sysPath   = CONFIG.SysFolder
 local themePath = sysPath .. "/Theme.txt"
@@ -290,15 +228,15 @@ local tabsPath  = sysPath .. "/tabs.json"
 local execPath  = sysPath .. "/autoexec.txt"
 local cfgPath   = sysPath .. "/config.json"
 
-local logLineCount: number = 0
+local logLineCount = 0
 
-local function safeCall(fn: (...any) -> ...any, ...: ...any): (boolean, ...any)
+local function safeCall(fn, ...)
     local ok, result = pcall(fn, ...)
     if not ok then warn("[NovaX] safeCall failed:", result) end
     return ok, result
 end
 
-local function fileExists(path: string): boolean
+local function fileExists(path)
     if not (FS.exists and FS.read) then return false end
     local ok, exists = safeCall(FS.exists, path)
     return ok and exists == true
@@ -307,16 +245,15 @@ end
 -- ============================================================
 -- Logging
 -- ============================================================
-local function toStr(v: any): string
+local function toStr(v)
     local ok, s = pcall(tostring, v)
     return ok and s or "<?>"
 end
 
-local function rotateLogIfNeeded(): ()
+local function rotateLogIfNeeded()
     if not hasFS then return end
     if logLineCount < CONFIG.MaxLogLines then return end
 
-    -- Используем UnixTimestamp вместо os.time()
     local timestamp = DateTime.now().UnixTimestamp
     local archivePath = logPath:gsub("%.txt$", "") .. "_" .. timestamp .. ".txt"
 
@@ -325,18 +262,18 @@ local function rotateLogIfNeeded(): ()
     logLineCount = 0
 end
 
-local function writeLog(tag: LogTag, msg: any): ()
+local function writeLog(tag, msg)
     if not hasFS then return end
 
     local timestamp = DateTime.now():FormatLocalTime("YYYY-MM-DD HH:mm:ss", "en-us")
     local line = string.format("[%s] [%s] %s\n", timestamp, tag, toStr(msg))
 
     safeCall(FS.append, logPath, line)
-    logLineCount += 1
+    logLineCount = logLineCount + 1
     rotateLogIfNeeded()
 end
 
-local function setupFileSystem(): ()
+local function setupFileSystem()
     if not hasFS then return end
     if not FS.folder(sysPath) then safeCall(FS.mkdir, sysPath) end
     if not fileExists(logPath)  then safeCall(FS.write, logPath,  "NovaX Execution Log\n") end
@@ -346,14 +283,14 @@ end
 -- ============================================================
 -- UI helpers
 -- ============================================================
-local function corner(parent: Instance, radius: number): UICorner
+local function corner(parent, radius)
     local c = Instance.new("UICorner")
     c.CornerRadius = UDim.new(0, radius)
     c.Parent = parent
     return c
 end
 
-local function new(className: string, props: { [string]: any }?, parent: Instance?): Instance
+local function new(className, props, parent)
     local inst = Instance.new(className)
     if props then
         for k, v in pairs(props) do
@@ -364,7 +301,7 @@ local function new(className: string, props: { [string]: any }?, parent: Instanc
     return inst
 end
 
-local function icon(parent: Instance, iconId: string, size: UDim2?, pos: UDim2?, color: Color3?, z: number?): ImageLabel
+local function icon(parent, iconId, size, pos, color, z)
     return new("ImageLabel", {
         Size                   = size or UDim2.new(0, 18, 0, 18),
         Position               = pos or UDim2.new(0, 0, 0, 0),
@@ -372,25 +309,10 @@ local function icon(parent: Instance, iconId: string, size: UDim2?, pos: UDim2?,
         Image                  = iconId,
         ImageColor3            = color or Color3.fromRGB(200, 200, 200),
         ZIndex                 = z or 5,
-    }, parent) :: ImageLabel
+    }, parent)
 end
 
---[=[
-    Универсальная функция hover-эффекта.
-    Работает для любого AnchorPoint (0, 0.5, 1).
-    @param btn Instance — кнопка
-    @param baseColor Color3? — базовый цвет
-    @param hoverColor Color3? — цвет при наведении
-    @param baseSize UDim2? — базовый размер
-    @param hoverSize UDim2? — размер при наведении
-]=]
-local function addHover(
-    btn: GuiButton,
-    baseColor: Color3?,
-    hoverColor: Color3?,
-    baseSize: UDim2?,
-    hoverSize: UDim2?
-): ()
+local function addHover(btn, baseColor, hoverColor, baseSize, hoverSize)
     local origSize  = baseSize or btn.Size
     local origColor = baseColor or btn.BackgroundColor3
     local origPos   = btn.Position
@@ -404,10 +326,6 @@ local function addHover(
         origSize.Y.Offset + 2
     )
 
-    -- Универсальная компенсация позиции для любого AnchorPoint
-    -- Если AnchorPoint.X = 0 → растёт вправо (компенсация не нужна)
-    -- Если AnchorPoint.X = 0.5 → растёт в обе стороны (компенсация -1)
-    -- Если AnchorPoint.X = 1 → растёт влево (компенсация -2)
     local compX = -2 * ap.X
     local compY = -2 * ap.Y
 
@@ -447,20 +365,19 @@ local ScreenGui = new("ScreenGui", {
     ResetOnSpawn   = false,
     IgnoreGuiInset = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, guiParent) :: ScreenGui
+}, guiParent)
 
 pcall(function()
     ScreenGui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 end)
 
--- Splash screen
 do
     local SplashGui = new("ScreenGui", {
         Name           = "NovaX_Splash",
         ResetOnSpawn   = false,
         IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    }, guiParent) :: ScreenGui
+    }, guiParent)
 
     pcall(function()
         SplashGui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
@@ -497,7 +414,7 @@ local Frame = new("Frame", {
     Active                 = true,
     ClipsDescendants       = false,
     ZIndex                 = 1,
-}, ScreenGui) :: Frame
+}, ScreenGui)
 
 corner(Frame, 0)
 
@@ -520,16 +437,15 @@ local GlowInner = new("UIStroke", {
     Color           = THEMES.Dark.accent,
     Transparency    = 0.15,
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, Frame) :: UIStroke
+}, Frame)
 
 local GlowOuter = new("UIStroke", {
     Thickness       = 6,
     Color           = THEMES.Dark.accent,
     Transparency    = 0.75,
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, Frame) :: UIStroke
+}, Frame)
 
--- Пульсация свечения
 task.spawn(function()
     while Frame.Parent do
         TweenService:Create(GlowOuter, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
@@ -553,7 +469,7 @@ local Sidebar = new("Frame", {
     BackgroundTransparency = 0.15,
     BorderSizePixel        = 0,
     ZIndex                 = 2,
-}, Frame) :: Frame
+}, Frame)
 
 new("Frame", {
     Size                   = UDim2.new(0, 1, 1, 0),
@@ -574,15 +490,14 @@ local SidebarTitle = new("TextLabel", {
     TextSize               = 24,
     TextXAlignment         = Enum.TextXAlignment.Left,
     ZIndex                 = 3,
-}, Sidebar) :: TextLabel
+}, Sidebar)
 
--- Перетаскивание окна с ограничением по экрану
 do
     local dragging = false
-    local dragStart: Vector3?
-    local startPos: UDim2?
+    local dragStart = nil
+    local startPos = nil
 
-    Sidebar.InputBegan:Connect(function(input: InputObject)
+    Sidebar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -597,17 +512,14 @@ do
         end
     end)
 
-    UserInputService.InputChanged:Connect(function(input: InputObject)
-        if dragging
-        and dragStart
-        and startPos
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and dragStart and startPos
         and (input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             local newX = startPos.X.Offset + delta.X
             local newY = startPos.Y.Offset + delta.Y
 
-            -- Ограничение пределами экрана
             local viewport = workspace.CurrentCamera.ViewportSize
             newX = math.clamp(newX, -viewport.X + 50, viewport.X - 50)
             newY = math.clamp(newY, -viewport.Y + 50, viewport.Y - 50)
@@ -628,10 +540,10 @@ local categoryDefs = {
     { key = "browser",  icon = ICONS.browser,  label = "Browser"        },
 }
 
-local categoryButtons: { [string]: TextButton } = {}
-local currentCategory: string = "execute"
+local categoryButtons = {}
+local currentCategory = "execute"
 
-local function switchCategory(key: string): ()
+local function switchCategory(key)
     currentCategory = key
     local theme = THEMES[currentTheme] or THEMES.Dark
 
@@ -660,7 +572,6 @@ local function switchCategory(key: string): ()
     end
 end
 
--- Создание кнопок категорий
 do
     local yOffset = 70
     for _, def in ipairs(categoryDefs) do
@@ -673,7 +584,7 @@ do
             Text                   = "",
             BorderSizePixel        = 0,
             ZIndex                 = 3,
-        }, Sidebar) :: TextButton
+        }, Sidebar)
 
         corner(btn, 10)
         icon(btn, def.icon, UDim2.new(0, 18, 0, 18), UDim2.new(0, 12, 0.5, -9),
@@ -702,7 +613,7 @@ do
 
         btn.MouseButton1Click:Connect(function() switchCategory(def.key) end)
         categoryButtons[def.key] = btn
-        yOffset += 46
+        yOffset = yOffset + 46
     end
 end
 
@@ -715,16 +626,16 @@ local Content = new("Frame", {
     Position               = UDim2.new(0, 160, 0, 0),
     BackgroundTransparency = 1,
     ZIndex                 = 2,
-}, Frame) :: Frame
+}, Frame)
 
-local function makePage(key: string): Frame
+local function makePage(key)
     local p = new("Frame", {
         Name                   = "Page_" .. key,
         Size                   = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Visible                = false,
         ZIndex                 = 2,
-    }, Content) :: Frame
+    }, Content)
     pages[key] = p
     return p
 end
@@ -741,12 +652,12 @@ local TabBar = new("ScrollingFrame", {
     CanvasSize             = UDim2.new(0, 0, 0, 0),
     ScrollBarThickness     = 0,
     ZIndex                 = 3,
-}, execPage) :: ScrollingFrame
+}, execPage)
 
 new("UIListLayout", {
-    FillDirection    = Enum.FillDirection.Horizontal,
-    Padding          = UDim.new(0, 6),
-    SortOrder        = Enum.SortOrder.LayoutOrder,
+    FillDirection     = Enum.FillDirection.Horizontal,
+    Padding           = UDim.new(0, 6),
+    SortOrder         = Enum.SortOrder.LayoutOrder,
     VerticalAlignment = Enum.VerticalAlignment.Center,
 }, TabBar)
 
@@ -767,7 +678,7 @@ local ScriptBox = new("TextBox", {
     ZIndex                 = 3,
     PlaceholderText        = "-- " .. t("execute") .. "...",
     PlaceholderColor3      = Color3.fromRGB(90, 90, 100),
-}, execPage) :: TextBox
+}, execPage)
 
 corner(ScriptBox, 12)
 
@@ -776,7 +687,7 @@ local editorStroke = new("UIStroke", {
     Color           = THEMES.Dark.accent,
     Transparency    = 0.8,
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, ScriptBox) :: UIStroke
+}, ScriptBox)
 
 local ExecuteBtn = new("TextButton", {
     Text                   = "",
@@ -785,7 +696,7 @@ local ExecuteBtn = new("TextButton", {
     BackgroundColor3       = Color3.fromRGB(0, 150, 220),
     BorderSizePixel        = 0,
     ZIndex                 = 3,
-}, execPage) :: TextButton
+}, execPage)
 
 corner(ExecuteBtn, 10)
 icon(ExecuteBtn, ICONS.execute, UDim2.new(0, 16, 0, 16), UDim2.new(0, 14, 0.5, -8),
@@ -801,7 +712,7 @@ local execLabel = new("TextLabel", {
     TextSize               = 15,
     TextXAlignment         = Enum.TextXAlignment.Left,
     ZIndex                 = 4,
-}, ExecuteBtn) :: TextLabel
+}, ExecuteBtn)
 
 addHover(ExecuteBtn, Color3.fromRGB(0, 150, 220), Color3.fromRGB(0, 180, 255))
 
@@ -813,7 +724,7 @@ local ClearBtn = new("TextButton", {
     BackgroundTransparency = 0.2,
     BorderSizePixel        = 0,
     ZIndex                 = 3,
-}, execPage) :: TextButton
+}, execPage)
 
 corner(ClearBtn, 10)
 icon(ClearBtn, ICONS.clear, UDim2.new(0, 16, 0, 16), UDim2.new(0, 12, 0.5, -8),
@@ -829,23 +740,23 @@ local clearLabel = new("TextLabel", {
     TextSize               = 14,
     TextXAlignment         = Enum.TextXAlignment.Left,
     ZIndex                 = 4,
-}, ClearBtn) :: TextLabel
+}, ClearBtn)
 
 addHover(ClearBtn, Color3.fromRGB(45, 45, 55), Color3.fromRGB(90, 40, 50))
 
 -- ============================================================
 -- Tab persistence
 -- ============================================================
-local tabsData: { [string]: { name: string, code: string } } = {}
-local activeTabId: string? = nil
-local rebuildDepth: number = 0
+local tabsData = {}
+local activeTabId = nil
+local rebuildDepth = 0
 
-local function saveTabs(): ()
+local function saveTabs()
     if not hasFS then return end
     safeCall(FS.write, tabsPath, HttpService:JSONEncode(tabsData))
 end
 
-local function loadTabs(): ()
+local function loadTabs()
     if not (FS.read and FS.exists) then return end
     if not fileExists(tabsPath) then return end
 
@@ -858,21 +769,18 @@ local function loadTabs(): ()
     end
 end
 
-local function rebuildTabBar(): ()
-    -- Guard от рекурсии
+local function rebuildTabBar()
     if rebuildDepth > 3 then
         warn("[NovaX] rebuildTabBar recursion limit reached, aborting.")
         return
     end
-    rebuildDepth += 1
+    rebuildDepth = rebuildDepth + 1
 
-    -- Очистка старых кнопок
     for _, child in ipairs(TabBar:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
 
-    -- Сбор ID и сортировка
-    local ids: { string } = {}
+    local ids = {}
     for id in pairs(tabsData) do
         ids[#ids + 1] = id
     end
@@ -881,48 +789,47 @@ local function rebuildTabBar(): ()
     local order = 0
     for _, id in ipairs(ids) do
         local tab = tabsData[id]
-        if not tab then continue end
+        if tab then
+            order = order + 1
+            local btn = new("TextButton", {
+                Name                   = "Tab_" .. id,
+                Size                   = UDim2.new(0, 100, 1, -6),
+                BackgroundColor3       = Color3.fromRGB(28, 28, 36),
+                BackgroundTransparency = 0.3,
+                TextColor3             = Color3.fromRGB(200, 200, 210),
+                Text                   = tab.name or ("Tab " .. order),
+                Font                   = FONT_REGULAR,
+                TextSize               = 13,
+                LayoutOrder            = order,
+                BorderSizePixel        = 0,
+                ZIndex                 = 4,
+            }, TabBar)
 
-        order += 1
-        local btn = new("TextButton", {
-            Name                   = "Tab_" .. id,
-            Size                   = UDim2.new(0, 100, 1, -6),
-            BackgroundColor3       = Color3.fromRGB(28, 28, 36),
-            BackgroundTransparency = 0.3,
-            TextColor3             = Color3.fromRGB(200, 200, 210),
-            Text                   = tab.name or ("Tab " .. order),
-            Font                   = FONT_REGULAR,
-            TextSize               = 13,
-            LayoutOrder            = order,
-            BorderSizePixel        = 0,
-            ZIndex                 = 4,
-        }, TabBar) :: TextButton
+            corner(btn, 8)
+            addHover(btn, Color3.fromRGB(28, 28, 36), Color3.fromRGB(40, 40, 52),
+                     UDim2.new(0, 100, 1, -6), UDim2.new(0, 102, 1, -4))
 
-        corner(btn, 8)
-        addHover(btn, Color3.fromRGB(28, 28, 36), Color3.fromRGB(40, 40, 52),
-                 UDim2.new(0, 100, 1, -6), UDim2.new(0, 102, 1, -4))
-
-        btn.MouseButton1Click:Connect(function()
-            if activeTabId and tabsData[activeTabId] then
-                tabsData[activeTabId].code = ScriptBox.Text
-            end
-            activeTabId = id
-            ScriptBox.Text = tabsData[id].code or ""
-
-            for _, child in ipairs(TabBar:GetChildren()) do
-                if child:IsA("TextButton") and child.Name ~= "AddTab" then
-                    child.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-                    child.BackgroundTransparency = 0.3
+            btn.MouseButton1Click:Connect(function()
+                if activeTabId and tabsData[activeTabId] then
+                    tabsData[activeTabId].code = ScriptBox.Text
                 end
-            end
+                activeTabId = id
+                ScriptBox.Text = tabsData[id].code or ""
 
-            btn.BackgroundColor3 = Color3.fromRGB(45, 45, 58)
-            btn.BackgroundTransparency = 0.1
-            saveTabs()
-        end)
+                for _, child in ipairs(TabBar:GetChildren()) do
+                    if child:IsA("TextButton") and child.Name ~= "AddTab" then
+                        child.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+                        child.BackgroundTransparency = 0.3
+                    end
+                end
+
+                btn.BackgroundColor3 = Color3.fromRGB(45, 45, 58)
+                btn.BackgroundTransparency = 0.1
+                saveTabs()
+            end)
+        end
     end
 
-    -- Кнопка добавления вкладки
     local addBtn = new("TextButton", {
         Name                   = "AddTab",
         Size                   = UDim2.new(0, 36, 1, -6),
@@ -935,7 +842,7 @@ local function rebuildTabBar(): ()
         LayoutOrder            = 9999,
         BorderSizePixel        = 0,
         ZIndex                 = 4,
-    }, TabBar) :: TextButton
+    }, TabBar)
 
     corner(addBtn, 8)
     addHover(addBtn, Color3.fromRGB(35, 55, 45), Color3.fromRGB(50, 90, 65),
@@ -947,21 +854,21 @@ local function rebuildTabBar(): ()
         end
 
         local id = makeId()
-        -- Проверка на успешность создания ID
         if not id or id == "" then
             warn("[NovaX] Failed to generate tab ID, aborting.")
-            rebuildDepth -= 1
+            rebuildDepth = rebuildDepth - 1
             return
         end
 
         tabsData[id] = { name = t("newTab"), code = "" }
         activeTabId = id
         saveTabs()
+        rebuildDepth = rebuildDepth - 1
         rebuildTabBar()
         ScriptBox.Text = ""
+        return
     end)
 
-    -- Активация вкладки
     if activeTabId and tabsData[activeTabId] then
         local activeBtn = TabBar:FindFirstChild("Tab_" .. activeTabId)
         if activeBtn and activeBtn:IsA("TextButton") then
@@ -979,23 +886,23 @@ local function rebuildTabBar(): ()
                 firstBtn.BackgroundTransparency = 0.1
             end
         else
-            -- Нет вкладок — создаём новую с проверкой
             local id = makeId()
             if not id or id == "" then
                 warn("[NovaX] Failed to generate initial tab ID.")
-                rebuildDepth -= 1
+                rebuildDepth = rebuildDepth - 1
                 return
             end
 
             tabsData[id] = { name = t("newTab"), code = "" }
             activeTabId = id
             saveTabs()
-            rebuildDepth -= 1
-            return rebuildTabBar()
+            rebuildDepth = rebuildDepth - 1
+            rebuildTabBar()
+            return
         end
     end
 
-    rebuildDepth -= 1
+    rebuildDepth = rebuildDepth - 1
 end
 
 -- ============================================================
@@ -1017,7 +924,7 @@ local SearchBox = new("TextBox", {
     TextSize               = 14,
     BorderSizePixel        = 0,
     ZIndex                 = 3,
-}, scriptPage) :: TextBox
+}, scriptPage)
 
 corner(SearchBox, 10)
 new("UIPadding", { PaddingLeft = UDim.new(0, 40) }, SearchBox)
@@ -1034,7 +941,7 @@ local SearchBtn = new("TextButton", {
     TextSize         = 14,
     BorderSizePixel  = 0,
     ZIndex           = 3,
-}, scriptPage) :: TextButton
+}, scriptPage)
 
 corner(SearchBtn, 10)
 addHover(SearchBtn, Color3.fromRGB(0, 150, 220), Color3.fromRGB(0, 180, 255))
@@ -1048,17 +955,17 @@ local ResultsFrame = new("ScrollingFrame", {
     ScrollBarThickness     = 4,
     ScrollBarImageColor3   = Color3.fromRGB(80, 80, 100),
     ZIndex                 = 3,
-}, scriptPage) :: ScrollingFrame
+}, scriptPage)
 
 new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, ResultsFrame)
 
-local function clearResults(): ()
+local function clearResults()
     for _, child in pairs(ResultsFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
 end
 
-local function resolveScriptCode(scriptData: { [string]: any }): string?
+local function resolveScriptCode(scriptData)
     if type(scriptData.script) == "string" and #scriptData.script > 0 then
         return scriptData.script
     end
@@ -1068,12 +975,7 @@ local function resolveScriptCode(scriptData: { [string]: any }): string?
     return nil
 end
 
---[=[
-    Создание карточки скрипта с корректной обработкой размеров.
-    @param scriptData table — данные скрипта
-    @param order number — порядок в списке
-]=]
-local function addScriptCard(scriptData: { [string]: any }, order: number): ()
+local function addScriptCard(scriptData, order)
     local card = new("Frame", {
         Size                   = UDim2.new(0, 0, 0, 90),
         BackgroundColor3       = Color3.fromRGB(22, 22, 30),
@@ -1081,24 +983,21 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         BorderSizePixel        = 0,
         LayoutOrder            = order,
         ZIndex                 = 4,
-    }, ResultsFrame) :: Frame
+    }, ResultsFrame)
 
     corner(card, 12)
 
-    -- Асинхронная установка ширины с ожиданием
     task.spawn(function()
-        -- Ожидаем, пока ResultsFrame получит размер
         local timeout = 0
         while ResultsFrame.AbsoluteSize.X <= 0 and timeout < 50 do
             task.wait(0.1)
-            timeout += 1
+            timeout = timeout + 1
         end
 
         local targetWidth = math.max(ResultsFrame.AbsoluteSize.X - 8, 100)
         card.Size = UDim2.new(0, targetWidth, 0, 90)
     end)
 
-    -- Цветная полоска слева
     new("Frame", {
         Size                   = UDim2.new(0, 3, 0.7, 0),
         Position               = UDim2.new(0, 0, 0.15, 0),
@@ -1108,7 +1007,6 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         ZIndex                 = 5,
     }, card)
 
-    -- Название скрипта
     new("TextLabel", {
         Size                   = UDim2.new(1, -20, 0, 22),
         Position               = UDim2.new(0, 14, 0, 8),
@@ -1121,7 +1019,6 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         ZIndex                 = 5,
     }, card)
 
-    -- Название игры
     new("TextLabel", {
         Size                   = UDim2.new(1, -20, 0, 18),
         Position               = UDim2.new(0, 14, 0, 32),
@@ -1134,7 +1031,6 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         ZIndex                 = 5,
     }, card)
 
-    -- Кнопка "Открыть"
     local openBtn = new("TextButton", {
         Text                   = t("open"),
         Size                   = UDim2.new(0, 100, 0, 30),
@@ -1146,12 +1042,11 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         TextSize               = 13,
         BorderSizePixel        = 0,
         ZIndex                 = 5,
-    }, card) :: TextButton
+    }, card)
 
     corner(openBtn, 8)
     addHover(openBtn, Color3.fromRGB(35, 35, 48), Color3.fromRGB(50, 60, 80))
 
-    -- Кнопка "Запустить"
     local runBtn = new("TextButton", {
         Text             = t("runNow"),
         Size             = UDim2.new(0, 100, 0, 30),
@@ -1162,12 +1057,11 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
         TextSize         = 13,
         BorderSizePixel  = 0,
         ZIndex           = 5,
-    }, card) :: TextButton
+    }, card)
 
     corner(runBtn, 8)
     addHover(runBtn, Color3.fromRGB(0, 120, 70), Color3.fromRGB(0, 160, 90))
 
-    -- Обработчики
     openBtn.MouseButton1Click:Connect(function()
         task.spawn(function()
             local code = resolveScriptCode(scriptData) or "-- Failed to fetch script"
@@ -1196,7 +1090,6 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
             local loader = getLoader()
             if not loader then return end
 
-            -- Безопасный loadstring через pcall
             local success, fn, err = pcall(loader, code)
             if not success or not fn then
                 writeLog("SYNTAX_ERROR", err or "loadstring failed")
@@ -1213,7 +1106,7 @@ local function addScriptCard(scriptData: { [string]: any }, order: number): ()
     end)
 end
 
-local function fetchAndRender(url: string, normalizer: (any) -> any): boolean
+local function fetchAndRender(url, normalizer)
     local response = safeHttpGet(url)
     if not response then
         writeLog("HTTP", "Request failed: " .. tostring(url))
@@ -1235,7 +1128,7 @@ local function fetchAndRender(url: string, normalizer: (any) -> any): boolean
     return true
 end
 
-local function normalizeRoScripts(data: any): { [string]: any }?
+local function normalizeRoScripts(data)
     if not (data.result and data.result.scripts) then return nil end
     local out = {}
     for _, s in ipairs(data.result.scripts) do
@@ -1251,7 +1144,7 @@ local function normalizeRoScripts(data: any): { [string]: any }?
     return out
 end
 
-local function normalizeScriptBlox(data: any): { [string]: any }?
+local function normalizeScriptBlox(data)
     if not (data.result and data.result.scripts) then return nil end
     local out = {}
     for _, s in ipairs(data.result.scripts) do
@@ -1266,7 +1159,7 @@ local function normalizeScriptBlox(data: any): { [string]: any }?
     return out
 end
 
-local function normalizeScriptBloxOfficial(data: any): { [string]: any }?
+local function normalizeScriptBloxOfficial(data)
     local list
     if data.result and data.result.scripts then
         list = data.result.scripts
@@ -1289,7 +1182,7 @@ local function normalizeScriptBloxOfficial(data: any): { [string]: any }?
     return out
 end
 
-local function performSearch(query: string): ()
+local function performSearch(query)
     if query == "" then return end
     clearResults()
 
@@ -1308,7 +1201,6 @@ local function performSearch(query: string): ()
             return
         end
 
-        -- Ошибка: все источники недоступны
         local errCard = new("Frame", {
             Size                   = UDim2.new(0, 0, 0, 70),
             BackgroundColor3       = Color3.fromRGB(60, 25, 25),
@@ -1316,13 +1208,13 @@ local function performSearch(query: string): ()
             BorderSizePixel        = 0,
             LayoutOrder            = 1,
             ZIndex                 = 4,
-        }, ResultsFrame) :: Frame
+        }, ResultsFrame)
 
         task.spawn(function()
             local timeout = 0
             while ResultsFrame.AbsoluteSize.X <= 0 and timeout < 50 do
                 task.wait(0.1)
-                timeout += 1
+                timeout = timeout + 1
             end
             local targetWidth = math.max(ResultsFrame.AbsoluteSize.X - 8, 100)
             errCard.Size = UDim2.new(0, targetWidth, 0, 70)
@@ -1373,7 +1265,7 @@ local IYBtn = new("TextButton", {
     BackgroundColor3 = Color3.fromRGB(70, 50, 140),
     BorderSizePixel  = 0,
     ZIndex           = 3,
-}, iyPage) :: TextButton
+}, iyPage)
 
 corner(IYBtn, 12)
 icon(IYBtn, ICONS.iy, UDim2.new(0, 20, 0, 20), UDim2.new(0, 16, 0.5, -10),
@@ -1432,13 +1324,13 @@ local SettingsScroll = new("ScrollingFrame", {
     ScrollBarThickness     = 4,
     ScrollBarImageColor3   = Color3.fromRGB(80, 80, 100),
     ZIndex                 = 3,
-}, settingsPage) :: ScrollingFrame
+}, settingsPage)
 
 new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, SettingsScroll)
 
-local sectionHeaders: { [string]: TextLabel } = {}
+local sectionHeaders = {}
 
-local function sectionHeader(text: string, order: number, key: string?): TextLabel
+local function sectionHeader(text, order, key)
     local lbl = new("TextLabel", {
         Size                   = UDim2.new(1, 0, 0, 28),
         BackgroundTransparency = 1,
@@ -1449,7 +1341,7 @@ local function sectionHeader(text: string, order: number, key: string?): TextLab
         TextXAlignment         = Enum.TextXAlignment.Left,
         LayoutOrder            = order,
         ZIndex                 = 4,
-    }, SettingsScroll) :: TextLabel
+    }, SettingsScroll)
 
     if key then sectionHeaders[key] = lbl end
     return lbl
@@ -1478,7 +1370,7 @@ do
             TextSize               = 14,
             BorderSizePixel        = 0,
             ZIndex                 = 5,
-        }, themeRow) :: TextButton
+        }, themeRow)
 
         corner(btn, 8)
         addHover(btn, Color3.fromRGB(35, 35, 45), Color3.fromRGB(55, 55, 70),
@@ -1487,7 +1379,7 @@ do
         btn.MouseButton1Click:Connect(function()
             if applyTheme then applyTheme(name) end
         end)
-        themeX += 100
+        themeX = themeX + 100
     end
 end
 
@@ -1510,7 +1402,7 @@ glowToggle = new("TextButton", {
     Font                   = FONT_BOLD,
     TextSize               = 13,
     ZIndex                 = 5,
-}, glowRow) :: TextButton
+}, glowRow)
 
 corner(glowToggle, 8)
 addHover(glowToggle, Color3.fromRGB(0, 130, 70), Color3.fromRGB(0, 170, 90),
@@ -1553,7 +1445,7 @@ do
             TextSize         = 11,
             BorderSizePixel  = 0,
             ZIndex           = 5,
-        }, colorRow) :: TextButton
+        }, colorRow)
 
         corner(cb, 6)
         addHover(cb, gc.c, gc.c:Lerp(Color3.new(1, 1, 1), 0.2),
@@ -1566,7 +1458,7 @@ do
             if toggleGlow then toggleGlow.Color = gc.c end
             if saveConfig then saveConfig() end
         end)
-        cx += 78
+        cx = cx + 78
     end
 end
 
@@ -1594,7 +1486,7 @@ do
                 TextSize               = 14,
                 BorderSizePixel        = 0,
                 ZIndex                 = 5,
-            }, langRow) :: TextButton
+            }, langRow)
 
             corner(lb, 8)
             addHover(lb, Color3.fromRGB(35, 35, 45), Color3.fromRGB(55, 55, 70),
@@ -1605,7 +1497,7 @@ do
                 if saveConfig then saveConfig() end
                 if applyLang then applyLang() end
             end)
-            lx += 68
+            lx = lx + 68
         end
     end
 end
@@ -1629,7 +1521,7 @@ local AutoExecBox = new("TextBox", {
     BorderSizePixel        = 0,
     LayoutOrder            = 9,
     ZIndex                 = 4,
-}, SettingsScroll) :: TextBox
+}, SettingsScroll)
 
 corner(AutoExecBox, 10)
 
@@ -1643,7 +1535,7 @@ local SaveAutoBtn = new("TextButton", {
     BorderSizePixel  = 0,
     LayoutOrder      = 10,
     ZIndex           = 5,
-}, SettingsScroll) :: TextButton
+}, SettingsScroll)
 
 corner(SaveAutoBtn, 8)
 addHover(SaveAutoBtn, Color3.fromRGB(0, 130, 190), Color3.fromRGB(0, 160, 220),
@@ -1677,7 +1569,7 @@ local ResetBtn = new("TextButton", {
     BorderSizePixel  = 0,
     LayoutOrder      = 11,
     ZIndex           = 5,
-}, SettingsScroll) :: TextButton
+}, SettingsScroll)
 
 corner(ResetBtn, 8)
 addHover(ResetBtn, Color3.fromRGB(70, 25, 30), Color3.fromRGB(120, 35, 45),
@@ -1701,7 +1593,7 @@ local UrlBox = new("TextBox", {
     TextSize               = 14,
     BorderSizePixel        = 0,
     ZIndex                 = 3,
-}, browserPage) :: TextBox
+}, browserPage)
 
 corner(UrlBox, 10)
 
@@ -1715,7 +1607,7 @@ local BrowserGoBtn = new("TextButton", {
     TextSize         = 14,
     BorderSizePixel  = 0,
     ZIndex           = 3,
-}, browserPage) :: TextButton
+}, browserPage)
 
 corner(BrowserGoBtn, 10)
 addHover(BrowserGoBtn, Color3.fromRGB(0, 150, 220), Color3.fromRGB(0, 180, 255))
@@ -1727,7 +1619,7 @@ local BrowserPlaceholder = new("Frame", {
     BackgroundTransparency = 0.3,
     BorderSizePixel        = 0,
     ZIndex                 = 3,
-}, browserPage) :: Frame
+}, browserPage)
 
 corner(BrowserPlaceholder, 12)
 
@@ -1743,7 +1635,7 @@ local BrowserText = new("TextLabel", {
     TextXAlignment         = Enum.TextXAlignment.Left,
     TextYAlignment         = Enum.TextYAlignment.Top,
     ZIndex                 = 4,
-}, BrowserPlaceholder) :: TextLabel
+}, BrowserPlaceholder)
 
 BrowserGoBtn.MouseButton1Click:Connect(function()
     local url = UrlBox.Text
@@ -1780,7 +1672,7 @@ CloseBtn = new("TextButton", {
     BackgroundTransparency = 0.1,
     BorderSizePixel        = 0,
     ZIndex                 = 60,
-}, Frame) :: TextButton
+}, Frame)
 
 corner(CloseBtn, 14)
 icon(CloseBtn, ICONS.close, UDim2.new(0, 22, 0, 22), UDim2.new(0.5, -11, 0.5, -11),
@@ -1791,7 +1683,7 @@ closeGlow = new("UIStroke", {
     Color           = THEMES.Dark.closeAccent:Lerp(Color3.new(1, 1, 1), 0.2),
     Transparency    = 0.4,
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, CloseBtn) :: UIStroke
+}, CloseBtn)
 
 addHover(CloseBtn, THEMES.Dark.closeAccent, THEMES.Dark.closeAccent:Lerp(Color3.new(1, 1, 1), 0.15),
          UDim2.new(0, 52, 0, 52), UDim2.new(0, 56, 0, 56))
@@ -1799,9 +1691,9 @@ addHover(CloseBtn, THEMES.Dark.closeAccent, THEMES.Dark.closeAccent:Lerp(Color3.
 -- ============================================================
 -- Config persistence
 -- ============================================================
-local cfg: { [string]: any } = {}
+local cfg = {}
 
-function saveConfig(): ()
+function saveConfig()
     if not hasFS then return end
 
     cfg.theme       = currentTheme
@@ -1816,7 +1708,7 @@ function saveConfig(): ()
     safeCall(FS.write, cfgPath, HttpService:JSONEncode(cfg))
 end
 
-function applyLang(): ()
+function applyLang()
     if execLabel then execLabel.Text = t("execute") end
     if clearLabel then clearLabel.Text = t("clear") end
     if SaveAutoBtn then SaveAutoBtn.Text = t("save") end
@@ -1831,7 +1723,7 @@ function applyLang(): ()
     end
 end
 
-local function loadConfig(): ()
+local function loadConfig()
     if not (FS.read and FS.exists) then return end
     if not fileExists(cfgPath) then return end
 
@@ -1876,7 +1768,7 @@ end
 -- ============================================================
 -- Theme
 -- ============================================================
-function applyTheme(name: string, skipSave: boolean?): ()
+function applyTheme(name, skipSave)
     local t2 = THEMES[name]
     if not t2 then return end
     currentTheme = name
@@ -1903,7 +1795,6 @@ function applyTheme(name: string, skipSave: boolean?): ()
         closeGlow.Color = t2.closeAccent:Lerp(Color3.new(1, 1, 1), 0.2)
     end
 
-    -- Защита ToggleButton
     if ToggleButton and ToggleButton.Parent then
         local togIcon = ToggleButton:FindFirstChildOfClass("ImageLabel")
         if togIcon then
@@ -1913,7 +1804,6 @@ function applyTheme(name: string, skipSave: boolean?): ()
         end
     end
 
-    -- Обновляем только активную категорию
     for k, btn in pairs(categoryButtons) do
         local active = (k == currentCategory)
         for _, ch in pairs(btn:GetChildren()) do
@@ -1927,7 +1817,7 @@ function applyTheme(name: string, skipSave: boolean?): ()
     if not skipSave and saveConfig then saveConfig() end
 end
 
-local function loadSavedTheme(): ()
+local function loadSavedTheme()
     if not (FS.read and FS.exists) then return end
     if not fileExists(themePath) then return end
 
@@ -1971,7 +1861,6 @@ ExecuteBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    -- Безопасный loadstring через pcall
     local success, fn, err = pcall(loader, code)
     if not success or not fn then
         execLabel.Text = t("syntax")
@@ -2054,7 +1943,7 @@ ToggleButton = new("TextButton", {
     Text                   = "",
     BorderSizePixel        = 0,
     ZIndex                 = 100,
-}, ScreenGui) :: TextButton
+}, ScreenGui)
 
 corner(ToggleButton, 14)
 
@@ -2063,7 +1952,7 @@ toggleGlow = new("UIStroke", {
     Color           = THEMES.Dark.accent,
     Transparency    = 0.3,
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, ToggleButton) :: UIStroke
+}, ToggleButton)
 
 icon(ToggleButton, ICONS.execute, UDim2.new(0, 24, 0, 24), UDim2.new(0.5, -12, 0.5, -12),
      THEMES.Dark.accent, 101)
